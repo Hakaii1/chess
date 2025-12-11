@@ -1,0 +1,95 @@
+.logContainer {
+  background: #2c3e50;
+  color: #ecf0f1;
+  padding: 15px;
+  border-radius: 8px;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.logContainer h2 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #3498db;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.logContent {
+  flex: 1;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  font-family: 'Courier New', monospace;
+}
+
+.logContent::-webkit-scrollbar {
+  width: 6px;
+}
+
+.logContent::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.logContent::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.logContent::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.logEntry {
+  margin: 6px 0;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 8px;
+  padding: 6px;
+  background: rgba(52, 152, 219, 0.1);
+  border-left: 2px solid #3498db;
+  border-radius: 2px;
+}
+
+.logNumber {
+  color: #f39c12;
+  font-weight: bold;
+  text-align: right;
+  user-select: none;
+}
+
+.logText {
+  color: #ecf0f1;
+}
+
+.logText:contains("attacks") {
+  color: #e74c3c;
+}
+
+.logText:contains("counter") {
+  color: #f39c12;
+}
+
+.logText:contains("Wins") {
+  color: #2ecc71;
+  font-weight: bold;
+}
+
+.emptyLog {
+  margin: 0;
+  text-align: center;
+  color: #95a5a6;
+  font-style: italic;
+}
+
+@media (max-width: 1200px) {
+  .logContainer {
+    height: 250px;
+  }
+}

@@ -1,0 +1,24 @@
+.canvasContainer {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.canvas {
+  border: 3px solid #333;
+  border-radius: 4px;
+  background: #f0e6d2;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.canvas:hover {
+  transform: scale(1.01);
+}
+
+.canvas:active {
+  transform: scale(0.99);
+}
