@@ -7,12 +7,12 @@
 
 import { Board } from './Board';
 import { Piece } from './Piece';
-import { PieceColor } from './PieceStats';
+import { PieceColor, PieceType } from './PieceStats';
 import { getValidMoves, ValidMove } from './MoveValidator';
 import { resolveCombat, CombatResult, applySpecialAbilities } from './CombatSystem';
 import { AI, ScoredMove } from './AI';
 
-export type GameMode = 'single-player' | 'multiplayer';
+export type GameMode = 'single-player' | 'multiplayer' | 'two-player';
 export type GameStatus = 'waiting' | 'in-progress' | 'game-over';
 
 export interface GameEvent {
@@ -100,6 +100,9 @@ export class GameEngine {
   public selectPiece(x: number, y: number): ValidMove[] {
     const piece = this.board.getPieceAt(x, y);
 
+    // Debug log to help identify selection issues
+    console.log(`[GameEngine] selectPiece called at (${x},${y}) -> piece=${piece ? piece.id : 'null'} color=${piece ? piece.color : 'n/a'} currentTurn=${this.currentTurn}`);
+
     // Can only select pieces of current player
     if (!piece || piece.color !== this.currentTurn || !piece.isAlive()) {
       this.selectedPiece = null;
@@ -132,12 +135,35 @@ export class GameEngine {
 
     const fromX = this.selectedPiece.x;
     const fromY = this.selectedPiece.y;
+    const piece = this.selectedPiece;
 
     // Move piece and capture if applicable
     const capturedPiece = this.board.movePiece(fromX, fromY, toX, toY);
     let combatResult: CombatResult | null = null;
 
     this.combatLog = [];
+
+    // Handle castling
+    if (piece.type === PieceType.KING && Math.abs(toX - fromX) === 2) {
+      // Kingside castling (king moves right)
+      if (toX > fromX) {
+        const rook = this.board.getPieceAt(7, fromY);
+        if (rook) {
+          this.board.movePiece(7, fromY, 5, fromY);
+          const colorName = piece.color === PieceColor.WHITE ? 'White' : 'Black';
+          this.combatLog.push(`${colorName} King castles (Kingside)!`);
+        }
+      } 
+      // Queenside castling (king moves left)
+      else {
+        const rook = this.board.getPieceAt(0, fromY);
+        if (rook) {
+          this.board.movePiece(0, fromY, 3, fromY);
+          const colorName = piece.color === PieceColor.WHITE ? 'White' : 'Black';
+          this.combatLog.push(`${colorName} King castles (Queenside)!`);
+        }
+      }
+    }
 
     // Combat happens if there was a captured piece
     if (capturedPiece) {

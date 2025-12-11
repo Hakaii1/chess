@@ -1,0 +1,497 @@
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(30, 10, 50, 0.95), rgba(0, 0, 0, 0.98));
+  backdrop-filter: blur(12px);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.4s ease-out;
+  overflow: hidden;
+}
+
+.bgEffects {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.bgGlow1 {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(200, 100, 255, 0.15), transparent 70%);
+  top: -200px;
+  left: -150px;
+  animation: floatGlow1 6s ease-in-out infinite;
+  filter: blur(60px);
+}
+
+.bgGlow2 {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(255, 100, 200, 0.1), transparent 70%);
+  bottom: -200px;
+  right: -150px;
+  animation: floatGlow2 8s ease-in-out infinite;
+  filter: blur(60px);
+}
+
+@keyframes floatGlow1 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(50px, 50px); }
+}
+
+@keyframes floatGlow2 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-50px, -50px); }
+}
+
+.battleContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 80px;
+  position: relative;
+  z-index: 10;
+  margin-bottom: 40px;
+}
+
+.cardWrapper {
+  perspective: 1000px;
+  animation: slideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cardWrapper:nth-child(2) {
+  animation: slideInLeft 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-100px) rotateY(-20deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) rotateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(100px) rotateY(20deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) rotateY(0);
+  }
+}
+
+.vsBadge {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d4af37, #f4d47f);
+  box-shadow: 
+    0 0 40px rgba(212, 175, 55, 0.8),
+    inset 0 0 20px rgba(255, 255, 255, 0.3),
+    0 10px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  animation: pulseBadge 0.8s ease-in-out;
+}
+
+.vsText {
+  font-size: 60px;
+  animation: spinVS 1.5s ease-in-out;
+}
+
+@keyframes pulseBadge {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes spinVS {
+  0% {
+    transform: rotate(-180deg) scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+.card {
+  width: 280px;
+  padding: 30px;
+  background: linear-gradient(135deg, rgba(40, 20, 60, 0.9), rgba(20, 10, 40, 0.95));
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 
+    0 15px 40px rgba(0, 0, 0, 0.7),
+    inset 0 0 30px rgba(200, 100, 255, 0.1),
+    0 0 60px rgba(200, 100, 255, 0.2);
+  border: 2px solid rgba(200, 100, 255, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.card.white {
+  background: linear-gradient(135deg, rgba(240, 240, 240, 0.15), rgba(200, 200, 200, 0.1));
+  border-color: rgba(212, 175, 55, 0.6);
+  box-shadow: 
+    0 15px 40px rgba(0, 0, 0, 0.7),
+    inset 0 0 30px rgba(212, 175, 55, 0.1),
+    0 0 60px rgba(212, 175, 55, 0.2);
+}
+
+.card.black {
+  background: linear-gradient(135deg, rgba(20, 10, 30, 0.95), rgba(10, 5, 20, 0.98));
+  border-color: rgba(255, 100, 200, 0.5);
+  box-shadow: 
+    0 15px 40px rgba(0, 0, 0, 0.8),
+    inset 0 0 30px rgba(255, 100, 200, 0.1),
+    0 0 60px rgba(255, 100, 200, 0.15);
+}
+
+.card.attacker {
+  transform: perspective(1200px) rotateY(-8deg);
+}
+
+.card.defender {
+  transform: perspective(1200px) rotateY(8deg);
+}
+
+.pieceTypeLabel {
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.8);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.pieceIconContainer {
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle at 35% 35%, rgba(212, 175, 55, 0.2), rgba(200, 100, 255, 0.1));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+  border: 2px solid rgba(212, 175, 55, 0.3);
+  box-shadow: inset 0 0 30px rgba(200, 100, 255, 0.2);
+  animation: floatPiece 3s ease-in-out infinite;
+}
+
+@keyframes floatPiece {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.pieceIcon {
+  font-size: 80px;
+  line-height: 1;
+  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.3));
+  animation: glowPiece 2s ease-in-out infinite;
+}
+
+@keyframes glowPiece {
+  0%, 100% { filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.3)); }
+  50% { filter: drop-shadow(0 0 30px rgba(200, 100, 255, 0.5)); }
+}
+
+.statRow {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 20px;
+  justify-content: center;
+}
+
+.statBox {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(200, 100, 255, 0.05));
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: center;
+  flex: 1;
+  box-shadow: inset 0 0 10px rgba(200, 100, 255, 0.1);
+  backdrop-filter: blur(5px);
+}
+
+.statLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.7);
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 20px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(200, 100, 255, 0.4);
+}
+
+.hpContainer {
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.hpLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.7);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.hpBar {
+  width: 100%;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  box-shadow: 
+    inset 0 2px 5px rgba(0, 0, 0, 0.5),
+    0 0 15px rgba(200, 100, 255, 0.1);
+}
+
+.hpFill {
+  height: 100%;
+  background: linear-gradient(90deg, #00ff00, #ffff00, #ff6600, #ff0000);
+  background-size: 300% 100%;
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 15px rgba(255, 100, 50, 0.4);
+  position: relative;
+}
+
+.hpFill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent);
+}
+
+.hpText {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  top: 0;
+  line-height: 24px;
+  font-size: 13px;
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+  font-weight: 900;
+  z-index: 2;
+}
+
+.damagePopup {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  animation: damageFloat 1.2s ease-out forwards;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.damageValue {
+  font-size: 48px;
+  font-weight: 900;
+  text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.damageLabel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.damagePopup.attackDmg .damageValue {
+  color: #ff3333;
+}
+
+.damagePopup.attackDmg .damageLabel {
+  color: #ff6666;
+}
+
+.damagePopup.counterDmg .damageValue {
+  color: #ff9933;
+}
+
+.damagePopup.counterDmg .damageLabel {
+  color: #ffcc66;
+}
+
+@keyframes damageFloat {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-80px) scale(0.5);
+  }
+}
+
+.actionAnim {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.lungeRight {
+  animation: lungeRight 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lungeLeft {
+  animation: lungeLeft 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes lungeRight {
+  0% { transform: translateX(0) scaleX(1); }
+  40% { transform: translateX(80px) scaleX(1.1); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+
+@keyframes lungeLeft {
+  0% { transform: translateX(0) scaleX(1); }
+  40% { transform: translateX(-80px) scaleX(1.1); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+
+.card.dead {
+  animation: dissolve 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  filter: grayscale(100%);
+}
+
+@keyframes dissolve {
+  0% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.6) rotate(-20deg);
+  }
+}
+
+.log {
+  margin-top: 50px;
+  height: 60px;
+  text-align: center;
+  z-index: 10;
+  position: relative;
+}
+
+.logItem {
+  font-size: 24px;
+  color: #fff;
+  font-weight: bold;
+  text-shadow: 0 0 20px rgba(200, 100, 255, 0.6), 0 0 40px rgba(200, 100, 255, 0.3);
+  animation: logFade 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  letter-spacing: 1px;
+}
+
+.logItem.attackLog {
+  color: #ff6666;
+  text-shadow: 0 0 20px rgba(255, 100, 100, 0.8), 0 0 40px rgba(255, 100, 100, 0.4);
+}
+
+.logItem.counterLog {
+  color: #ffcc66;
+  text-shadow: 0 0 20px rgba(255, 150, 50, 0.8), 0 0 40px rgba(255, 150, 50, 0.4);
+}
+
+.logItem.killLog {
+  color: #ff3333;
+  font-size: 32px;
+  text-transform: uppercase;
+  text-shadow: 0 0 30px rgba(255, 50, 50, 1), 0 0 60px rgba(255, 50, 50, 0.5);
+  animation: logFade 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), killPulse 0.8s ease-out;
+}
+
+@keyframes logFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes killPulse {
+  0% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(12px);
+  }
+}

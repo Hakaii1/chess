@@ -10,8 +10,12 @@ import { GameEngine } from '../core';
 /**
  * Custom hook to manage game state
  */
-export function useGameEngine(gameMode: 'single-player' | 'multiplayer' = 'single-player') {
-  const [engine] = useState(() => new GameEngine(gameMode));
+export function useGameEngine(gameMode: 'single-player' | 'two-player' | 'multiplayer' | null = 'single-player') {
+  // Create engine for the selected game mode
+  const actualGameMode = gameMode || 'single-player';
+  const [engine, setEngine] = useState(() => new GameEngine(actualGameMode));
+
+  // Initialize game state
   const [gameState, setGameState] = useState(() => ({
     boardState: engine.getBoardState(),
     currentTurn: engine.getCurrentTurn(),
@@ -24,6 +28,25 @@ export function useGameEngine(gameMode: 'single-player' | 'multiplayer' = 'singl
     lastMove: null as any,
     isAIThinking: engine.isAIThinking()
   }));
+
+  // Recreate engine when game mode changes
+  useEffect(() => {
+    const newEngine = new GameEngine(actualGameMode);
+    setEngine(newEngine);
+    // Reset game state to match new engine
+    setGameState({
+      boardState: newEngine.getBoardState(),
+      currentTurn: newEngine.getCurrentTurn(),
+      selectedPiece: newEngine.getSelectedPiece(),
+      validMoves: newEngine.getValidMoves(),
+      combatLog: newEngine.getCombatLog(),
+      gameStatus: newEngine.getGameStatus(),
+      turnCount: newEngine.getTurnCount(),
+      winner: newEngine.getWinner(),
+      lastMove: null,
+      isAIThinking: newEngine.isAIThinking()
+    });
+  }, [actualGameMode]);
 
   // Update UI and other side-effects based on engine
   const updateGameState = useCallback(() => {

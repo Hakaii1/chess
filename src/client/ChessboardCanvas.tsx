@@ -21,13 +21,16 @@ interface ChessboardCanvasProps {
     toY: number;
     combatResult: any | null;
   } | null;
+  boardFlipped?: boolean;
+  gameMode?: 'single-player' | 'two-player';
+  currentTurn?: PieceColor;
 }
 
 const BOARD_SIZE = 8;
-const SQUARE_SIZE = 60;
+const SQUARE_SIZE = 70;
 const PIECE_FONT_SIZE = 40;
-const HP_BAR_HEIGHT = 4;
-const HP_BAR_WIDTH = SQUARE_SIZE - 4;
+const HP_BAR_HEIGHT = 6;
+const HP_BAR_WIDTH = SQUARE_SIZE - 8;
 
 interface Particle {
   x: number;
@@ -38,6 +41,74 @@ interface Particle {
   life: number;
   size: number;
 }
+
+// Helper function to draw custom premium pieces
+const drawPremiumPiece = (
+  ctx: CanvasRenderingContext2D,
+  piece: Piece,
+  x: number,
+  y: number,
+  size: number
+) => {
+  const isWhite = piece.color === PieceColor.WHITE;
+  const centerX = x + size / 2;
+  const centerY = y + size / 2;
+  const radius = size / 2.2;
+
+  // Base circle with gradient
+  const gradient = ctx.createRadialGradient(centerX - size / 5, centerY - size / 5, 0, centerX, centerY, radius);
+  if (isWhite) {
+    gradient.addColorStop(0, '#ffffff');
+    gradient.addColorStop(0.7, '#f0f0f0');
+    gradient.addColorStop(1, '#d0d0d0');
+  } else {
+    gradient.addColorStop(0, '#444444');
+    gradient.addColorStop(0.7, '#222222');
+    gradient.addColorStop(1, '#000000');
+  }
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Metallic shine
+  const shineGradient = ctx.createLinearGradient(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
+  shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+  shineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+  shineGradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+  ctx.fillStyle = shineGradient;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Highlight
+  ctx.fillStyle = isWhite ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.3)';
+  ctx.beginPath();
+  ctx.arc(centerX - radius / 3, centerY - radius / 3, radius / 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Border
+  ctx.strokeStyle = isWhite ? '#888888' : '#ffdd00';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Draw piece symbol with glow
+  const symbol = PIECE_SYMBOLS[piece.type][piece.color];
+  ctx.fillStyle = isWhite ? '#222222' : '#ffdd00';
+  ctx.font = `bold ${size * 0.65}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  // Shadow for contrast
+  ctx.fillStyle = isWhite ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 221, 0, 0.2)';
+  ctx.fillText(symbol, centerX, centerY + 2);
+  
+  // Main text
+  ctx.fillStyle = isWhite ? '#000000' : '#ffdd00';
+  ctx.fillText(symbol, centerX, centerY);
+};
 
 const PIECE_SYMBOLS: Record<PieceType, Record<PieceColor, string>> = {
   [PieceType.PAWN]: { [PieceColor.WHITE]: '♙', [PieceColor.BLACK]: '♟' },
@@ -54,7 +125,10 @@ export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
   validMoves,
   onSquareClick,
   isAIThinking,
-  lastMove
+  lastMove,
+  boardFlipped = false,
+  gameMode = 'single-player',
+  currentTurn
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -87,20 +161,36 @@ export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
     }
   }, [lastMove]);
 
-  const spawnParticles = (gx: number, gy: number, color: PieceColor) => {
-    const centerX = gx * SQUARE_SIZE + SQUARE_SIZE / 2;
-    const centerY = gy * SQUARE_SIZE + SQUARE_SIZE / 2;
-    const particleColor = color === PieceColor.WHITE ? '#eeeeee' : '#333333';
+  // Helper to convert board coordinates when flipped
+  const getBoardCoordinates = (x: number, y: number) => {
+    // Only apply visual flip in two-player mode
+    if (gameMode === 'two-player' && boardFlipped) {
+      return { x: 7 - x, y: 7 - y };
+    }
+    return { x, y };
+  };
 
-    for (let i = 0; i < 30; i++) {
+  const spawnParticles = (gx: number, gy: number, color: PieceColor) => {
+    const coords = getBoardCoordinates(gx, gy);
+    const centerX = coords.x * SQUARE_SIZE + SQUARE_SIZE / 2;
+    const centerY = coords.y * SQUARE_SIZE + SQUARE_SIZE / 2;
+    
+    // Vibrant particle colors based on piece color
+    const colors = color === PieceColor.WHITE 
+      ? ['#ffffff', '#e0e0e0', '#ffdd00', '#ff99ff']
+      : ['#ffdd00', '#ff9900', '#ff33ff', '#ff0066'];
+
+    for (let i = 0; i < 40; i++) {
+      const angle = (i / 40) * Math.PI * 2;
+      const speed = Math.random() * 10 + 5;
       particles.current.push({
         x: centerX,
         y: centerY,
-        vx: (Math.random() - 0.5) * 8,
-        vy: (Math.random() - 0.5) * 8,
-        color: particleColor,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color: colors[Math.floor(Math.random() * colors.length)],
         life: 1.0,
-        size: Math.random() * 4 + 2
+        size: Math.random() * 6 + 3
       });
     }
   };
@@ -115,45 +205,91 @@ export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
     let animationFrameId: number;
 
     const render = () => {
-      // 1. Draw Board
-      ctx.fillStyle = '#f0e6d2';
+      // 1. Draw Board - Premium gradient background
+      const gradientBg = ctx.createLinearGradient(0, 0, BOARD_SIZE * SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE);
+      gradientBg.addColorStop(0, '#1a0f2e');
+      gradientBg.addColorStop(0.5, '#2d1b4e');
+      gradientBg.addColorStop(1, '#1a0f2e');
+      ctx.fillStyle = gradientBg;
       ctx.fillRect(0, 0, BOARD_SIZE * SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE);
 
+      // Draw premium checkered pattern
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE; x++) {
-          if ((x + y) % 2 === 1) {
-            ctx.fillStyle = '#baca44'; 
-            ctx.fillRect(x * SQUARE_SIZE, y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+          const renderCoords = getBoardCoordinates(x, y);
+          const isLight = (x + y) % 2 === 0;
+          
+          if (isLight) {
+            // Light squares - warm golden tone
+            ctx.fillStyle = '#e8d5b7';
+            ctx.fillRect(renderCoords.x * SQUARE_SIZE, renderCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+            
+            // Subtle texture overlay
+            ctx.fillStyle = 'rgba(200, 180, 150, 0.05)';
+            ctx.fillRect(renderCoords.x * SQUARE_SIZE, renderCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+          } else {
+            // Dark squares - deep purple-brown
+            ctx.fillStyle = '#5d3a5d';
+            ctx.fillRect(renderCoords.x * SQUARE_SIZE, renderCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+            
+            // Subtle shine effect
+            ctx.fillStyle = 'rgba(100, 50, 100, 0.1)';
+            ctx.fillRect(renderCoords.x * SQUARE_SIZE, renderCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
           }
         }
       }
 
+      // Border around board
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(0, 0, BOARD_SIZE * SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE);
+
       // 2. Highlight Last Move
       if (lastMove) {
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.2)';
-        ctx.fillRect(lastMove.fromX * SQUARE_SIZE, lastMove.fromY * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-        ctx.fillRect(lastMove.toX * SQUARE_SIZE, lastMove.toY * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+        const fromCoords = getBoardCoordinates(lastMove.fromX, lastMove.fromY);
+        const toCoords = getBoardCoordinates(lastMove.toX, lastMove.toY);
+        ctx.fillStyle = 'rgba(255, 200, 50, 0.3)';
+        ctx.fillRect(fromCoords.x * SQUARE_SIZE, fromCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+        ctx.fillRect(toCoords.x * SQUARE_SIZE, toCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
       }
 
       // 3. Highlight Selected
       if (selectedPiece) {
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
-        ctx.fillRect(selectedPiece.x * SQUARE_SIZE, selectedPiece.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+        const selCoords = getBoardCoordinates(selectedPiece.x, selectedPiece.y);
+        ctx.fillStyle = 'rgba(200, 100, 255, 0.4)';
+        ctx.fillRect(selCoords.x * SQUARE_SIZE, selCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+        // Glow effect
+        ctx.strokeStyle = 'rgba(200, 100, 255, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(selCoords.x * SQUARE_SIZE + 2, selCoords.y * SQUARE_SIZE + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4);
       }
 
-      // 4. Valid Moves
+      // 4. Valid Moves with premium styling
       validMoves.forEach(move => {
+        const moveCoords = getBoardCoordinates(move.x, move.y);
         if (move.isAttack) {
           const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
-          ctx.fillStyle = `rgba(255, 0, 0, ${0.3 + pulse * 0.2})`;
-          ctx.fillRect(move.x * SQUARE_SIZE, move.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-        } else {
-          ctx.fillStyle = 'rgba(0, 150, 0, 0.6)';
+          ctx.fillStyle = `rgba(255, 60, 60, ${0.3 + pulse * 0.3})`;
           ctx.beginPath();
           ctx.arc(
-            move.x * SQUARE_SIZE + SQUARE_SIZE / 2,
-            move.y * SQUARE_SIZE + SQUARE_SIZE / 2,
-            8,
+            moveCoords.x * SQUARE_SIZE + SQUARE_SIZE / 2,
+            moveCoords.y * SQUARE_SIZE + SQUARE_SIZE / 2,
+            20 + pulse * 5,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+          // Inner glow
+          ctx.strokeStyle = `rgba(255, 100, 100, ${0.6 + pulse * 0.2})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = 'rgba(100, 200, 100, 0.8)';
+          ctx.beginPath();
+          ctx.arc(
+            moveCoords.x * SQUARE_SIZE + SQUARE_SIZE / 2,
+            moveCoords.y * SQUARE_SIZE + SQUARE_SIZE / 2,
+            10,
             0,
             Math.PI * 2
           );
@@ -161,112 +297,152 @@ export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
         }
       });
 
-      // 5. Draw Pieces
+      // 5. Draw Pieces with custom rendering
       boardState.forEach((row, y) => {
         row.forEach((piece, x) => {
           if (!piece) return;
 
-          const pieceX = x * SQUARE_SIZE;
-          const pieceY = y * SQUARE_SIZE;
+          const pieceCoords = getBoardCoordinates(x, y);
+          const pieceX = pieceCoords.x * SQUARE_SIZE;
+          const pieceY = pieceCoords.y * SQUARE_SIZE;
 
-          // Don't draw piece if it's currently exploding (wait for next state update to clear it)
-          // Actually, we keep drawing it until state removes it, particles overlay on top
-          
-          ctx.fillStyle = piece.color === PieceColor.WHITE ? '#ffffff' : '#333333';
-          ctx.beginPath();
-          ctx.arc(pieceX + SQUARE_SIZE / 2, pieceY + SQUARE_SIZE / 2, SQUARE_SIZE / 2.3, 0, Math.PI * 2);
-          ctx.fill();
+          drawPremiumPiece(ctx, piece, pieceX, pieceY, SQUARE_SIZE);
 
-          ctx.strokeStyle = piece.color === PieceColor.WHITE ? '#333333' : '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-
-          ctx.fillStyle = piece.color === PieceColor.WHITE ? '#333333' : '#ffffff';
-          ctx.font = `bold ${PIECE_FONT_SIZE}px serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(PIECE_SYMBOLS[piece.type][piece.color], pieceX + SQUARE_SIZE / 2, pieceY + SQUARE_SIZE / 2 - 2);
-
-          // HP Bar
+          // HP Bar with premium styling
           if (piece.stats.hp < piece.stats.maxHP) {
             const healthPercent = piece.getHealthPercent();
-            const barX = pieceX + 2;
-            const barY = pieceY + SQUARE_SIZE - HP_BAR_HEIGHT - 2;
+            const barX = pieceX + 4;
+            const barY = pieceY + SQUARE_SIZE - HP_BAR_HEIGHT - 4;
+            const barWidth = HP_BAR_WIDTH;
 
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(barX, barY, HP_BAR_WIDTH, HP_BAR_HEIGHT);
+            // Background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(barX, barY, barWidth, HP_BAR_HEIGHT);
+            ctx.strokeStyle = 'rgba(200, 100, 255, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(barX, barY, barWidth, HP_BAR_HEIGHT);
 
-            ctx.fillStyle = '#00ff00';
-            ctx.fillRect(barX, barY, HP_BAR_WIDTH * healthPercent, HP_BAR_HEIGHT);
+            // Health fill with gradient
+            const healthGradient = ctx.createLinearGradient(barX, barY, barX + barWidth, barY);
+            if (healthPercent > 0.5) {
+              healthGradient.addColorStop(0, '#00ff00');
+              healthGradient.addColorStop(1, '#ffff00');
+            } else if (healthPercent > 0.25) {
+              healthGradient.addColorStop(0, '#ffff00');
+              healthGradient.addColorStop(1, '#ff6600');
+            } else {
+              healthGradient.addColorStop(0, '#ff6600');
+              healthGradient.addColorStop(1, '#ff0000');
+            }
+            ctx.fillStyle = healthGradient;
+            ctx.fillRect(barX, barY, barWidth * healthPercent, HP_BAR_HEIGHT);
           }
         });
       });
 
-      // 6. Update & Draw Particles
+      // 6. Update & Draw Particles with glow
       for (let i = particles.current.length - 1; i >= 0; i--) {
         const p = particles.current[i];
         p.x += p.vx;
         p.y += p.vy;
-        p.life -= 0.05;
-        p.vy += 0.5; // Gravity
+        p.life -= 0.03;
+        p.vy += 0.3; // Gravity
+        p.vx *= 0.98; // Air resistance
 
         if (p.life <= 0) {
           particles.current.splice(i, 1);
         } else {
+          // Glow effect
           ctx.fillStyle = p.color;
+          ctx.globalAlpha = p.life * 0.6;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size + 2, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Core
           ctx.globalAlpha = p.life;
-          ctx.fillRect(p.x, p.y, p.size, p.size);
+          ctx.shadowBlur = 0;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
           ctx.globalAlpha = 1.0;
         }
       }
 
-      // 7. Draw Combat Text
+      // 7. Draw Combat Text with premium styling
       if (animation && animation.type === 'combat') {
-        const { toX, toY, combatResult } = animation.data;
+        const { toX, toY, fromX, fromY, combatResult } = animation.data;
+        const toCoords = getBoardCoordinates(toX, toY);
+        const fromCoords = getBoardCoordinates(fromX, fromY);
         const elapsed = Date.now() - animation.startTime;
-        const duration = 1000;
+        const duration = 1200;
 
         if (elapsed < duration) {
-          const centerX = toX * SQUARE_SIZE + SQUARE_SIZE / 2;
-          const centerY = toY * SQUARE_SIZE + SQUARE_SIZE / 2;
-          const floatOffset = (elapsed / duration) * 40;
-          const alpha = Math.max(0, 1 - (elapsed / duration));
+          const centerX = toCoords.x * SQUARE_SIZE + SQUARE_SIZE / 2;
+          const centerY = toCoords.y * SQUARE_SIZE + SQUARE_SIZE / 2;
+          const floatOffset = (elapsed / duration) * 60;
+          const alpha = Math.max(0, 1 - (elapsed / duration * 0.8));
+          const scale = 1 + (elapsed / duration) * 0.3;
 
-          // Damage Text
-          ctx.font = 'bold 24px Arial';
-          ctx.fillStyle = `rgba(255, 50, 50, ${alpha})`;
-          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-          ctx.lineWidth = 4;
-          
+          // Damage Text with glow
           const dmgText = `-${combatResult.attackDamage}`;
+          ctx.font = 'bold 42px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          
+          // Glow layers
+          for (let i = 5; i > 0; i--) {
+            ctx.fillStyle = `rgba(255, 100, 100, ${alpha * 0.2 * (1 - i / 5)})`;
+            ctx.fillText(dmgText, centerX, centerY - floatOffset - i);
+          }
+          
+          ctx.fillStyle = `rgba(255, 50, 50, ${alpha})`;
+          ctx.strokeStyle = `rgba(255, 200, 100, ${alpha * 0.8})`;
+          ctx.lineWidth = 3;
           ctx.strokeText(dmgText, centerX, centerY - floatOffset);
           ctx.fillText(dmgText, centerX, centerY - floatOffset);
 
           // Counter Damage
           if (combatResult.defenderCounterDamage > 0) {
-            const fromX = animation.data.fromX;
-            const fromY = animation.data.fromY;
-            const originX = fromX * SQUARE_SIZE + SQUARE_SIZE / 2;
-            const originY = fromY * SQUARE_SIZE + SQUARE_SIZE / 2;
+            const originX = fromCoords.x * SQUARE_SIZE + SQUARE_SIZE / 2;
+            const originY = fromCoords.y * SQUARE_SIZE + SQUARE_SIZE / 2;
+            const counterText = `-${combatResult.defenderCounterDamage}`;
+            
+            // Glow layers
+            for (let i = 5; i > 0; i--) {
+              ctx.fillStyle = `rgba(255, 150, 50, ${alpha * 0.2 * (1 - i / 5)})`;
+              ctx.fillText(counterText, originX, originY - floatOffset - i);
+            }
             
             ctx.fillStyle = `rgba(255, 140, 0, ${alpha})`;
-            const counterText = `-${combatResult.defenderCounterDamage}`;
+            ctx.strokeStyle = `rgba(255, 200, 100, ${alpha * 0.8})`;
+            ctx.lineWidth = 3;
             ctx.strokeText(counterText, originX, originY - floatOffset);
             ctx.fillText(counterText, originX, originY - floatOffset);
           }
         }
       }
 
-      // 8. AI Thinking Overlay
+      // 8. AI Thinking Overlay with premium styling
       if (isAIThinking) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.fillRect(0, 0, BOARD_SIZE * SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE);
         
         const pulse = (Math.sin(Date.now() / 300) + 1) / 2;
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.8 + pulse * 0.2})`;
-        ctx.font = 'bold 24px Arial';
+        
+        // Animated glow
+        ctx.fillStyle = `rgba(200, 100, 255, ${0.3 + pulse * 0.3})`;
+        ctx.beginPath();
+        ctx.arc((BOARD_SIZE * SQUARE_SIZE) / 2, (BOARD_SIZE * SQUARE_SIZE) / 2, 40 + pulse * 20, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulse * 0.2})`;
+        ctx.font = 'bold 28px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('Enemy Turn...', (BOARD_SIZE * SQUARE_SIZE) / 2, (BOARD_SIZE * SQUARE_SIZE) / 2);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('AI is thinking...', (BOARD_SIZE * SQUARE_SIZE) / 2, (BOARD_SIZE * SQUARE_SIZE) / 2);
       }
 
       animationFrameId = requestAnimationFrame(render);
@@ -274,14 +450,21 @@ export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
 
     render();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [boardState, selectedPiece, validMoves, isAIThinking, animation, lastMove]);
+  }, [boardState, selectedPiece, validMoves, isAIThinking, animation, lastMove, boardFlipped]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / SQUARE_SIZE);
-    const y = Math.floor((e.clientY - rect.top) / SQUARE_SIZE);
+    let x = Math.floor((e.clientX - rect.left) / SQUARE_SIZE);
+    let y = Math.floor((e.clientY - rect.top) / SQUARE_SIZE);
+    
+    // Flip only in two-player mode (vs AI shouldn't flip)
+    if (gameMode === 'two-player' && boardFlipped) {
+      x = 7 - x;
+      y = 7 - y;
+    }
+    
     if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) {
       onSquareClick(x, y);
     }

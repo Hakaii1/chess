@@ -13,6 +13,7 @@ export class Piece {
   public x: number;
   public y: number;
   public id: string; // Unique identifier for tracking
+  public moveCount: number; // Track moves for castling
 
   constructor(type: PieceType, color: PieceColor, x: number, y: number, id: string) {
     this.type = type;
@@ -21,6 +22,7 @@ export class Piece {
     this.y = y;
     this.id = id;
     this.stats = getStartingStats(type);
+    this.moveCount = 0;
   }
 
   /**
@@ -59,14 +61,16 @@ export class Piece {
   public clone(): Piece {
     const cloned = new Piece(this.type, this.color, this.x, this.y, this.id);
     cloned.stats = { ...this.stats };
+    cloned.moveCount = this.moveCount;
     return cloned;
   }
 
   /**
-   * Move piece to new position
+   * Move piece to new position and increment move counter
    */
   public moveTo(x: number, y: number): void {
     this.x = x;
     this.y = y;
+    this.moveCount++;
   }
 }

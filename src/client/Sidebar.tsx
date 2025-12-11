@@ -14,6 +14,8 @@ interface SidebarProps {
   winner: PieceColor | null;
   onResetGame: () => void;
   boardState: (Piece | null)[][]; // Added to calculate King HP
+  gameMode?: 'single-player' | 'two-player';
+  boardFlipped?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -22,7 +24,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   turnCount,
   winner,
   onResetGame,
-  boardState
+  boardState,
+  gameMode = 'single-player',
+  boardFlipped = false
 }) => {
   // Find Kings and get their stats
   const { whiteKing, blackKing } = useMemo(() => {
@@ -97,6 +101,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </span>
               </p>
               <p className={styles.turnCount}>Turn {turnCount}</p>
+              {gameMode === 'two-player' && boardFlipped && (
+                <p className={styles.boardFlipInfo}>📺 Board Flipped for Black</p>
+              )}
             </>
           )}
         </div>
