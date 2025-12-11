@@ -1,6 +1,6 @@
 /**
  * App.tsx
- * Main React component - ties everything together
+ * Main React component - Revamped for Arena UI
  */
 
 import React, { useEffect, useState } from 'react';
@@ -29,24 +29,19 @@ export const App: React.FC = () => {
 
   const [activeBattle, setActiveBattle] = useState<CombatResult | null>(null);
 
-  // Watch for new combat events in the game state
   useEffect(() => {
     if (gameState.lastMove && gameState.lastMove.combatResult) {
-      // Trigger battle scene
       setActiveBattle(gameState.lastMove.combatResult);
     }
   }, [gameState.lastMove]);
 
-  // Auto-flip board for two-player after each turn
   useEffect(() => {
     if (gameMode === 'two-player' && gameState.gameStatus === 'in-progress') {
-      // Flip board when it's the other player's turn
       setBoardFlipped(gameState.currentTurn === PieceColor.BLACK);
     }
   }, [gameState.currentTurn, gameMode, gameState.gameStatus]);
 
   const handleSquareClick = (x: number, y: number) => {
-    // Disable interaction during AI turn, Game Over, or Active Battle Animation
     if (isAIThinking || gameState.gameStatus === 'game-over' || activeBattle) {
       return;
     }
@@ -57,17 +52,13 @@ export const App: React.FC = () => {
         executeMove(x, y);
         return;
       } else if (gameState.selectedPiece.x === x && gameState.selectedPiece.y === y) {
-        // Clicking on selected piece deselects it
         deselectPiece();
         return;
       } else {
-        // Clicking on a different piece - select it instead
         selectPiece(x, y);
         return;
       }
     }
-
-    // Always try to select the clicked piece (even if something was previously selected)
     selectPiece(x, y);
   };
 
@@ -75,24 +66,20 @@ export const App: React.FC = () => {
     setActiveBattle(null);
   };
 
-  const handleGameModeSelect = (mode: 'single-player' | 'two-player') => {
-    setGameMode(mode);
-    setBoardFlipped(false);
-  };
-
   const handleResetGame = () => {
     resetGame();
     setBoardFlipped(false);
   };
 
-  // Show mode selector if mode not yet chosen
   if (!gameMode) {
-    return <GameModeSelector onSelectMode={handleGameModeSelect} />;
+    return <GameModeSelector onSelectMode={(mode) => { setGameMode(mode); setBoardFlipped(false); }} />;
   }
 
   return (
-    <div className={styles.container}>
-      {/* 1v1 Battle Overlay */}
+    <div className={styles.gameLayout}>
+      {/* Background Ambience */}
+      <div className={styles.ambientLight}></div>
+
       {activeBattle && (
         <BattleScene 
           combatResult={activeBattle} 
@@ -100,44 +87,56 @@ export const App: React.FC = () => {
         />
       )}
 
-      <div className={styles.mainContent}>
-        <ChessboardCanvas
-          boardState={gameState.boardState}
-          selectedPiece={gameState.selectedPiece}
-          validMoves={gameState.validMoves}
-          onSquareClick={handleSquareClick}
-          isAIThinking={isAIThinking}
-          lastMove={gameState.lastMove}
-          boardFlipped={boardFlipped}
-          gameMode={gameMode}
+      {/* Top HUD: Health Bars & Score */}
+      <div className={styles.topHud}>
+        <Sidebar
           currentTurn={gameState.currentTurn}
+          gameStatus={gameState.gameStatus}
+          turnCount={gameState.turnCount}
+          winner={gameState.winner}
+          onResetGame={handleResetGame}
+          boardState={gameState.boardState}
+          gameMode={gameMode}
+          boardFlipped={boardFlipped}
         />
-        
-        {/* Game Over Overlay */}
-        {gameState.gameStatus === 'game-over' && !activeBattle && (
-          <div className={styles.overlay}>
-            <h1 className={styles.overlayTitle}>Victory!</h1>
-            <p className={styles.overlaySubtitle}>
-              {gameState.winner === PieceColor.WHITE ? 'White' : 'Black'} Dominates the Board
+      </div>
+
+      {/* Main Arena Area */}
+      <div className={styles.arenaContainer}>
+        <div className={styles.boardWrapper}>
+          <ChessboardCanvas
+            boardState={gameState.boardState}
+            selectedPiece={gameState.selectedPiece}
+            validMoves={gameState.validMoves}
+            onSquareClick={handleSquareClick}
+            isAIThinking={isAIThinking}
+            lastMove={gameState.lastMove}
+            boardFlipped={boardFlipped}
+            gameMode={gameMode}
+            currentTurn={gameState.currentTurn}
+          />
+        </div>
+      </div>
+
+      {/* Bottom Terminal: Logs */}
+      <div className={styles.bottomHud}>
+        <CombatLog logs={gameState.combatLog} />
+      </div>
+
+      {/* Victory Overlay */}
+      {gameState.gameStatus === 'game-over' && !activeBattle && (
+        <div className={styles.victoryOverlay}>
+          <div className={styles.victoryCard}>
+            <h1 className={styles.victoryTitle}>VICTORY</h1>
+            <p className={styles.victorySubtitle}>
+              {gameState.winner === PieceColor.WHITE ? 'White Legion' : 'Black Army'} Prevails
             </p>
-            <button className={styles.overlayButton} onClick={handleResetGame}>
+            <button className={styles.victoryButton} onClick={handleResetGame}>
               Play Again
             </button>
           </div>
-        )}
-
-        <CombatLog logs={gameState.combatLog} />
-      </div>
-      <Sidebar
-        currentTurn={gameState.currentTurn}
-        gameStatus={gameState.gameStatus}
-        turnCount={gameState.turnCount}
-        winner={gameState.winner}
-        onResetGame={handleResetGame}
-        boardState={gameState.boardState}
-        gameMode={gameMode}
-        boardFlipped={boardFlipped}
-      />
+        </div>
+      )}
     </div>
   );
 };

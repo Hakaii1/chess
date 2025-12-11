@@ -1,6 +1,6 @@
 /**
- * Sidebar.tsx
- * Shows game info: King Health Bars, current turn, piece stats, game status
+ * Sidebar.tsx -> TopHUD.tsx
+ * Revamped to be a horizontal HUD bar
  */
 
 import React, { useMemo } from 'react';
@@ -13,7 +13,7 @@ interface SidebarProps {
   turnCount: number;
   winner: PieceColor | null;
   onResetGame: () => void;
-  boardState: (Piece | null)[][]; // Added to calculate King HP
+  boardState: (Piece | null)[][];
   gameMode?: 'single-player' | 'two-player';
   boardFlipped?: boolean;
 }
@@ -22,17 +22,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentTurn,
   gameStatus,
   turnCount,
-  winner,
   onResetGame,
-  boardState,
-  gameMode = 'single-player',
-  boardFlipped = false
+  boardState
 }) => {
-  // Find Kings and get their stats
   const { whiteKing, blackKing } = useMemo(() => {
     let wKing: Piece | null = null;
     let bKing: Piece | null = null;
-
     boardState.forEach(row => {
       row.forEach(piece => {
         if (!piece) return;
@@ -42,114 +37,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }
       });
     });
-
     return { whiteKing: wKing, blackKing: bKing };
   }, [boardState]);
 
-  const renderHealthBar = (king: Piece | null, label: string) => {
+  const renderHealthBar = (king: Piece | null, label: string, color: string) => {
     if (!king) return null;
     const percent = (king.stats.hp / king.stats.maxHP) * 100;
     
     return (
-      <div className={styles.healthBarContainer}>
-        <div className={styles.healthInfo}>
-          <span>{label}</span>
-          <span>{king.stats.hp}/{king.stats.maxHP}</span>
-        </div>
-        <div className={styles.healthTrack}>
+      <div className={styles.bossBarWrapper}>
+        <div className={styles.bossBarLabel} style={{ color }}>{label}</div>
+        <div className={styles.bossBarTrack}>
           <div 
-            className={styles.healthFill} 
+            className={styles.bossBarFill} 
             style={{ 
               width: `${percent}%`,
-              background: percent < 30 ? '#e74c3c' : percent < 60 ? '#f1c40f' : '#2ecc71'
+              background: color,
+              boxShadow: `0 0 10px ${color}`
             }} 
           />
         </div>
+        <div className={styles.bossBarValue}>{king.stats.hp}/{king.stats.maxHP}</div>
       </div>
     );
   };
 
   return (
-    <div className={styles.sidebar}>
-      <div className={styles.header}>
-        <h1>⚔️ Battle Chess</h1>
+    <div className={styles.hudBar}>
+      <div className={styles.leftSide}>
+        {renderHealthBar(whiteKing, "WHITE KING", "#4deeea")}
       </div>
 
-      {/* King Health Section (Boss Bars) */}
-      <div className={styles.section}>
-        <h2>Commanders</h2>
-        {renderHealthBar(blackKing, "♚ Black King")}
-        <div style={{ height: 10 }} />
-        {renderHealthBar(whiteKing, "♔ White King")}
-      </div>
-
-      <div className={styles.section}>
-        <h2>Game Status</h2>
-        <div className={styles.statusBox}>
-          {gameStatus === 'game-over' ? (
-            <>
-              <p className={styles.gameOverText}>🏆 GAME OVER 🏆</p>
-              <p className={styles.winner}>
-                {winner === PieceColor.WHITE ? '♔ White' : '♚ Black'} Wins!
-              </p>
-            </>
-          ) : (
-            <>
-              <p className={styles.currentTurn}>
-                Current Turn: <span style={{ color: currentTurn === PieceColor.WHITE ? '#fff' : '#aaa' }}>
-                  {currentTurn === PieceColor.WHITE ? '♔ White' : '♚ Black'}
-                </span>
-              </p>
-              <p className={styles.turnCount}>Turn {turnCount}</p>
-              {gameMode === 'two-player' && boardFlipped && (
-                <p className={styles.boardFlipInfo}>📺 Board Flipped for Black</p>
-              )}
-            </>
-          )}
+      <div className={styles.centerInfo}>
+        <div className={styles.turnIndicator}>
+          TURN {turnCount}
+        </div>
+        <div className={styles.turnPlayer} style={{ color: currentTurn === PieceColor.WHITE ? '#4deeea' : '#ff5555' }}>
+          {currentTurn === PieceColor.WHITE ? "WHITE'S MOVE" : "BLACK'S MOVE"}
         </div>
       </div>
 
-      <div className={styles.section}>
-        <h2>Controls</h2>
-        <button className={styles.resetButton} onClick={onResetGame}>
-          🔄 New Game
+      <div className={styles.rightSide}>
+        {renderHealthBar(blackKing, "BLACK KING", "#ff5555")}
+        <button className={styles.miniResetBtn} onClick={onResetGame} title="Reset Game">
+          ⟳
         </button>
-      </div>
-
-      <div className={styles.section}>
-        <h2>Piece Stats</h2>
-        <div className={styles.statsTable}>
-          <div className={styles.statRow}>
-            <span className={styles.piece}>♙</span>
-            <span>Pawn</span>
-            <span className={styles.stats}>HP:20 ATK:5</span>
-          </div>
-          <div className={styles.statRow}>
-            <span className={styles.piece}>♘</span>
-            <span>Knight</span>
-            <span className={styles.stats}>HP:35 ATK:15</span>
-          </div>
-          <div className={styles.statRow}>
-            <span className={styles.piece}>♗</span>
-            <span>Bishop</span>
-            <span className={styles.stats}>HP:30 ATK:12</span>
-          </div>
-          <div className={styles.statRow}>
-            <span className={styles.piece}>♖</span>
-            <span>Rook</span>
-            <span className={styles.stats}>HP:45 ATK:18</span>
-          </div>
-          <div className={styles.statRow}>
-            <span className={styles.piece}>♕</span>
-            <span>Queen</span>
-            <span className={styles.stats}>HP:60 ATK:25</span>
-          </div>
-          <div className={styles.statRow}>
-            <span className={styles.piece}>♔</span>
-            <span>King</span>
-            <span className={styles.stats}>HP:50 ATK:10</span>
-          </div>
-        </div>
       </div>
     </div>
   );
