@@ -1,6 +1,6 @@
 /**
- * Sidebar.tsx -> TopHUD.tsx
- * Revamped to be a horizontal HUD bar
+ * Sidebar.tsx
+ * Top HUD with improved buttons and layout
  */
 
 import React, { useMemo } from 'react';
@@ -13,6 +13,7 @@ interface SidebarProps {
   turnCount: number;
   winner: PieceColor | null;
   onResetGame: () => void;
+  onBackToMenu: () => void; // New prop
   boardState: (Piece | null)[][];
   gameMode?: 'single-player' | 'two-player';
   boardFlipped?: boolean;
@@ -20,9 +21,9 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTurn,
-  gameStatus,
   turnCount,
   onResetGame,
+  onBackToMenu,
   boardState
 }) => {
   const { whiteKing, blackKing } = useMemo(() => {
@@ -65,6 +66,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <div className={styles.hudBar}>
       <div className={styles.leftSide}>
+        <button className={styles.backButton} onClick={onBackToMenu} title="Back to Menu">
+          ◀ MENU
+        </button>
         {renderHealthBar(whiteKing, "WHITE KING", "#4deeea")}
       </div>
 
@@ -79,8 +83,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <div className={styles.rightSide}>
         {renderHealthBar(blackKing, "BLACK KING", "#ff5555")}
-        <button className={styles.miniResetBtn} onClick={onResetGame} title="Reset Game">
-          ⟳
+        <button className={styles.resetButton} onClick={onResetGame} title="Reset Game">
+          <span>RESTART</span>
+          <span className={styles.resetIcon}>⟳</span>
         </button>
       </div>
     </div>

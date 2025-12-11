@@ -12,7 +12,7 @@
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 20px;
 }
 
 .rightSide {
@@ -23,11 +23,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 150px;
+  min-width: 180px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 5px 15px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .turnIndicator {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   color: #888;
   letter-spacing: 2px;
   font-weight: 600;
@@ -46,7 +50,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: 300px;
+  max-width: 250px;
 }
 
 .bossBarLabel {
@@ -57,10 +61,11 @@
 
 .bossBarTrack {
   height: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(50, 50, 50, 0.5);
   border-radius: 4px;
   overflow: hidden;
   position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .bossBarFill {
@@ -74,22 +79,52 @@
   text-align: right;
 }
 
-.miniResetBtn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #fff;
-  width: 30px;
-  height: 30px;
-  border-radius: 4px;
+/* Premium Buttons */
+.backButton {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ccc;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  transition: all 0.2s;
+  gap: 5px;
 }
 
-.miniResetBtn:hover {
+.backButton:hover {
+  background: rgba(255, 255, 255, 0.15);
   border-color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transform: translateX(-2px);
+}
+
+.resetButton {
+  background: linear-gradient(135deg, #ff9900 0%, #ff5500 100%);
+  border: none;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 0 10px rgba(255, 100, 0, 0.3);
+  text-transform: uppercase;
+}
+
+.resetButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(255, 100, 0, 0.5);
+  background: linear-gradient(135deg, #ffaa33 0%, #ff6600 100%);
+}
+
+.resetIcon {
+  font-size: 1.1rem;
 }

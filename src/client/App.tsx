@@ -1,6 +1,6 @@
 /**
  * App.tsx
- * Main React component - Revamped for Arena UI
+ * Main React component - Integrated Back Button
  */
 
 import React, { useEffect, useState } from 'react';
@@ -71,13 +71,18 @@ export const App: React.FC = () => {
     setBoardFlipped(false);
   };
 
+  const handleBackToMenu = () => {
+    setGameMode(null);
+    setBoardFlipped(false);
+    resetGame();
+  };
+
   if (!gameMode) {
     return <GameModeSelector onSelectMode={(mode) => { setGameMode(mode); setBoardFlipped(false); }} />;
   }
 
   return (
     <div className={styles.gameLayout}>
-      {/* Background Ambience */}
       <div className={styles.ambientLight}></div>
 
       {activeBattle && (
@@ -87,7 +92,6 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Top HUD: Health Bars & Score */}
       <div className={styles.topHud}>
         <Sidebar
           currentTurn={gameState.currentTurn}
@@ -95,13 +99,13 @@ export const App: React.FC = () => {
           turnCount={gameState.turnCount}
           winner={gameState.winner}
           onResetGame={handleResetGame}
+          onBackToMenu={handleBackToMenu}
           boardState={gameState.boardState}
           gameMode={gameMode}
           boardFlipped={boardFlipped}
         />
       </div>
 
-      {/* Main Arena Area */}
       <div className={styles.arenaContainer}>
         <div className={styles.boardWrapper}>
           <ChessboardCanvas
@@ -118,12 +122,10 @@ export const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Terminal: Logs */}
       <div className={styles.bottomHud}>
         <CombatLog logs={gameState.combatLog} />
       </div>
 
-      {/* Victory Overlay */}
       {gameState.gameStatus === 'game-over' && !activeBattle && (
         <div className={styles.victoryOverlay}>
           <div className={styles.victoryCard}>
@@ -131,9 +133,14 @@ export const App: React.FC = () => {
             <p className={styles.victorySubtitle}>
               {gameState.winner === PieceColor.WHITE ? 'White Legion' : 'Black Army'} Prevails
             </p>
-            <button className={styles.victoryButton} onClick={handleResetGame}>
-              Play Again
-            </button>
+            <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+              <button className={styles.victoryButton} onClick={handleResetGame}>
+                Play Again
+              </button>
+              <button className={styles.victoryButton} onClick={handleBackToMenu}>
+                Menu
+              </button>
+            </div>
           </div>
         </div>
       )}
