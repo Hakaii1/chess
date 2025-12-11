@@ -1,7 +1,6 @@
 /**
  * PieceStats.ts
- * Defines the statistics for each piece type
- * These are the core attributes that determine piece behavior
+ * Defines stats and CLASSES for the new balance system
  */
 
 export enum PieceType {
@@ -18,42 +17,41 @@ export enum PieceColor {
   BLACK = 'black'
 }
 
+// New: Class System
+export enum PieceClass {
+  MELEE = 'Melee',   // Knight, Pawn
+  RANGED = 'Ranged', // Queen, Bishop
+  TANK = 'Tank'      // Rook, King
+}
+
 export interface PieceStats {
   hp: number;
   maxHP: number;
   atk: number;
   def: number;
-  rng: number; // Attack range
+  rng: number; 
+  pClass: PieceClass; // New field
 }
 
-/**
- * Default stats for each piece type
- * HP: Health Points
- * ATK: Attack damage
- * DEF: Defense (reduces incoming damage)
- * RNG: Attack range in squares
- */
+// Stats tuned for the Class System
 export const DEFAULT_STATS: Record<PieceType, Omit<PieceStats, 'hp' | 'maxHP'>> = {
-  [PieceType.PAWN]: { atk: 5, def: 1, rng: 1 },
-  [PieceType.KNIGHT]: { atk: 15, def: 5, rng: 1 },
-  [PieceType.BISHOP]: { atk: 12, def: 3, rng: 3 },
-  [PieceType.ROOK]: { atk: 18, def: 8, rng: 1 },
-  [PieceType.QUEEN]: { atk: 25, def: 10, rng: 3 },
-  [PieceType.KING]: { atk: 10, def: 10, rng: 1 }
+  [PieceType.PAWN]:   { atk: 6,  def: 1, rng: 1, pClass: PieceClass.MELEE },
+  [PieceType.KNIGHT]: { atk: 15, def: 6, rng: 1, pClass: PieceClass.MELEE },
+  [PieceType.BISHOP]: { atk: 14, def: 2, rng: 3, pClass: PieceClass.RANGED },
+  [PieceType.ROOK]:   { atk: 16, def: 9, rng: 1, pClass: PieceClass.TANK },
+  [PieceType.QUEEN]:  { atk: 24, def: 2, rng: 3, pClass: PieceClass.RANGED },
+  [PieceType.KING]:   { atk: 12, def: 5, rng: 1, pClass: PieceClass.TANK }
 };
 
 export const PIECE_MAX_HP: Record<PieceType, number> = {
   [PieceType.PAWN]: 20,
-  [PieceType.KNIGHT]: 35,
-  [PieceType.BISHOP]: 30,
-  [PieceType.ROOK]: 45,
-  [PieceType.QUEEN]: 60,
+  [PieceType.KNIGHT]: 45,
+  [PieceType.BISHOP]: 25,
+  [PieceType.ROOK]: 55,
+  [PieceType.QUEEN]: 35, // Glass Cannon
   [PieceType.KING]: 50
 };
 
-/**
- * Get the starting stats for a piece
- */
 export function getStartingStats(pieceType: PieceType): PieceStats {
   const maxHP = PIECE_MAX_HP[pieceType];
   const baseStats = DEFAULT_STATS[pieceType];

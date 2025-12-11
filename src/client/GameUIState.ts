@@ -1,23 +1,18 @@
 /**
  * GameUIState.ts
  * React state wrapper around the GameEngine
- * Bridges the game logic with React components
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { GameEngine } from '../core';
 
-/**
- * Custom hook to manage game state
- */
-export function useGameEngine(gameMode: 'single-player' | 'two-player' | 'multiplayer' | null = 'single-player') {
-  // Create engine for the selected game mode
+export function useGameEngine(gameMode: any = 'single-player') {
   const actualGameMode = gameMode || 'single-player';
   const [engine, setEngine] = useState(() => new GameEngine(actualGameMode));
 
-  // Initialize game state
   const [gameState, setGameState] = useState(() => ({
     boardState: engine.getBoardState(),
+    terrain: engine.getBoard().terrain, // Added terrain
     currentTurn: engine.getCurrentTurn(),
     selectedPiece: engine.getSelectedPiece(),
     validMoves: engine.getValidMoves(),
@@ -29,13 +24,12 @@ export function useGameEngine(gameMode: 'single-player' | 'two-player' | 'multip
     isAIThinking: engine.isAIThinking()
   }));
 
-  // Recreate engine when game mode changes
   useEffect(() => {
     const newEngine = new GameEngine(actualGameMode);
     setEngine(newEngine);
-    // Reset game state to match new engine
     setGameState({
       boardState: newEngine.getBoardState(),
+      terrain: newEngine.getBoard().terrain,
       currentTurn: newEngine.getCurrentTurn(),
       selectedPiece: newEngine.getSelectedPiece(),
       validMoves: newEngine.getValidMoves(),
@@ -48,14 +42,13 @@ export function useGameEngine(gameMode: 'single-player' | 'two-player' | 'multip
     });
   }, [actualGameMode]);
 
-  // Update UI and other side-effects based on engine
   const updateGameState = useCallback(() => {
     const history = engine.getMoveHistory();
     const lastMove = history.length > 0 ? history[history.length - 1] : null;
 
-    // Build next state snapshot from engine
-    const nextState = {
+    setGameState({
       boardState: engine.getBoardState(),
+      terrain: engine.getBoard().terrain,
       currentTurn: engine.getCurrentTurn(),
       selectedPiece: engine.getSelectedPiece(),
       validMoves: engine.getValidMoves(),
@@ -65,9 +58,7 @@ export function useGameEngine(gameMode: 'single-player' | 'two-player' | 'multip
       winner: engine.getWinner(),
       lastMove,
       isAIThinking: engine.isAIThinking()
-    };
-
-    setGameState(nextState);
+    });
   }, [engine]);
 
   const handleSelectPiece = useCallback((x: number, y: number) => {
@@ -83,10 +74,7 @@ export function useGameEngine(gameMode: 'single-player' | 'two-player' | 'multip
   const handleExecuteMove = useCallback((toX: number, toY: number) => {
     const success = engine.executeMove(toX, toY);
     if (success) {
-      // engine may schedule AI move; give engine a tick and then sync
       setTimeout(() => updateGameState(), 0);
-
-      // If AI will think, schedule another sync after AI completes (engine uses 1s delay)
       if (engine.isAIThinking()) {
         setTimeout(() => updateGameState(), 1200);
       }
@@ -99,27 +87,17 @@ export function useGameEngine(gameMode: 'single-player' | 'two-player' | 'multip
     updateGameState();
   }, [engine, updateGameState]);
 
-  // Poll engine to keep UI in sync while AI is thinking or moves happen outside React
   useEffect(() => {
     const interval = setInterval(() => {
-      // Only update if something changed to avoid excessive renders
       const isThinking = engine.isAIThinking();
       if (isThinking !== gameState.isAIThinking || engine.getTurnCount() !== gameState.turnCount || engine.getGameStatus() !== gameState.gameStatus) {
         updateGameState();
       }
     }, 200);
-
     return () => clearInterval(interval);
   }, [engine, gameState.isAIThinking, gameState.turnCount, gameState.gameStatus, updateGameState]);
 
   return {
-    engine,
-    gameState,
-    selectPiece: handleSelectPiece,
-    deselectPiece: handleDeselectPiece,
-    executeMove: handleExecuteMove,
-    resetGame: handleResetGame,
-    // expose reactive value from state
-    isAIThinking: gameState.isAIThinking
+    engine, gameState, selectPiece: handleSelectPiece, deselectPiece: handleDeselectPiece, executeMove: handleExecuteMove, resetGame: handleResetGame, isAIThinking: gameState.isAIThinking
   };
 }

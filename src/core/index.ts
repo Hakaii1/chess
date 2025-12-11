@@ -8,7 +8,7 @@ export type { GameMode, GameStatus, GameEvent } from './GameEngine';
 export { Board } from './Board';
 export { Piece } from './Piece';
 export type { PieceStats } from './PieceStats';
-export { PieceType, PieceColor, getStartingStats } from './PieceStats';
+export { PieceType, PieceColor, PieceClass, getStartingStats } from './PieceStats';
 export type { CombatResult } from './CombatSystem';
 export { resolveCombat, applySpecialAbilities } from './CombatSystem';
 export { getValidMoves } from './MoveValidator';

@@ -1,6 +1,6 @@
 /**
  * App.tsx
- * Main React component - Integrated Back Button
+ * Main React component - Integrated Back Button & Turn Banner
  */
 
 import React, { useEffect, useState } from 'react';
@@ -16,6 +16,7 @@ import styles from './App.module.css';
 export const App: React.FC = () => {
   const [gameMode, setGameMode] = useState<'single-player' | 'two-player' | null>(null);
   const [boardFlipped, setBoardFlipped] = useState(false);
+  const [showBanner, setShowBanner] = useState(false); // New State
 
   const {
     gameState,
@@ -34,6 +35,15 @@ export const App: React.FC = () => {
       setActiveBattle(gameState.lastMove.combatResult);
     }
   }, [gameState.lastMove]);
+
+  // Turn Banner Trigger
+  useEffect(() => {
+    if (gameState.gameStatus === 'in-progress') {
+      setShowBanner(true);
+      const timer = setTimeout(() => setShowBanner(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.currentTurn, gameState.gameStatus]);
 
   useEffect(() => {
     if (gameMode === 'two-player' && gameState.gameStatus === 'in-progress') {
@@ -92,6 +102,15 @@ export const App: React.FC = () => {
         />
       )}
 
+      {/* Turn Banner Overlay */}
+      {showBanner && !activeBattle && (
+        <div className={styles.turnBanner}>
+          <div className={`${styles.bannerText} ${gameState.currentTurn === PieceColor.WHITE ? styles.whiteTurn : styles.blackTurn}`}>
+            {gameState.currentTurn === PieceColor.WHITE ? 'WHITE LEGION COMMAND' : 'BLACK ARMY ASSAULT'}
+          </div>
+        </div>
+      )}
+
       <div className={styles.topHud}>
         <Sidebar
           currentTurn={gameState.currentTurn}
@@ -110,6 +129,7 @@ export const App: React.FC = () => {
         <div className={styles.boardWrapper}>
           <ChessboardCanvas
             boardState={gameState.boardState}
+            terrain={gameState.terrain}
             selectedPiece={gameState.selectedPiece}
             validMoves={gameState.validMoves}
             onSquareClick={handleSquareClick}

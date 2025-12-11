@@ -1,14 +1,14 @@
 /**
  * GameEngine.ts
- * Main game logic engine
- * Fixed: Combat resolution before movement
+ * Updated to support Terrain Effects and new Combat Logic
+ * Fixed: Added missing getMoveHistory() method
  */
 
 import { Board } from './Board';
 import { Piece } from './Piece';
 import { PieceColor, PieceType } from './PieceStats';
 import { getValidMoves, ValidMove } from './MoveValidator';
-import { resolveCombat, CombatResult, applySpecialAbilities } from './CombatSystem';
+import { resolveCombat, CombatResult, applySpecialAbilities, applyEnvironmentalEffects } from './CombatSystem';
 import { AI, ScoredMove } from './AI';
 
 export type GameMode = 'single-player' | 'multiplayer' | 'two-player';
@@ -22,14 +22,7 @@ export class GameEngine {
   private selectedPiece: Piece | null;
   private validMoves: ValidMove[];
   private combatLog: string[];
-  private moveHistory: Array<{
-    fromX: number;
-    fromY: number;
-    toX: number;
-    toY: number;
-    capturedPiece: Piece | null;
-    combatResult: CombatResult | null;
-  }>;
+  private moveHistory: any[];
   private turnCount: number;
 
   constructor(gameMode: GameMode = 'single-player') {
@@ -44,8 +37,6 @@ export class GameEngine {
     this.turnCount = 1;
   }
 
-  // ==================== GETTERS ====================
-
   public getBoard(): Board { return this.board; }
   public getBoardState(): (Piece | null)[][] { return this.board.squares; }
   public getCurrentTurn(): PieceColor { return this.currentTurn; }
@@ -56,17 +47,13 @@ export class GameEngine {
   public getTurnCount(): number { return this.turnCount; }
   public getGameMode(): GameMode { return this.gameMode; }
 
-  // ==================== GAME LOGIC ====================
-
   public selectPiece(x: number, y: number): ValidMove[] {
     const piece = this.board.getPieceAt(x, y);
-    
     if (!piece || piece.color !== this.currentTurn || !piece.isAlive()) {
       this.selectedPiece = null;
       this.validMoves = [];
       return [];
     }
-
     this.selectedPiece = piece;
     this.validMoves = getValidMoves(piece, this.board.squares);
     return this.validMoves;
@@ -79,7 +66,6 @@ export class GameEngine {
 
   public executeMove(toX: number, toY: number): boolean {
     if (!this.selectedPiece) return false;
-
     const move = this.validMoves.find(m => m.x === toX && m.y === toY);
     if (!move) return false;
 
@@ -92,7 +78,7 @@ export class GameEngine {
     let defenderDied = false;
     this.combatLog = [];
 
-    // --- CASTLING LOGIC ---
+    // Castling
     if (attacker.type === PieceType.KING && Math.abs(toX - fromX) === 2) {
       if (toX > fromX) { // Kingside
         const rook = this.board.getPieceAt(7, fromY);
@@ -111,49 +97,40 @@ export class GameEngine {
           this.combatLog.push(`${attacker.color} King castles (Queenside)!`);
         }
       }
-      // King moves normally below
       this.board.setPieceAt(fromX, fromY, null);
       this.board.setPieceAt(toX, toY, attacker);
       attacker.moveTo(toX, toY);
     }
-    // --- COMBAT LOGIC ---
+    // Combat
     else if (target && move.isAttack) {
-      // 1. Resolve Combat BEFORE moving
-      combatResult = resolveCombat(attacker, target);
+      // Pass board to resolveCombat for terrain def bonuses
+      combatResult = resolveCombat(attacker, target, this.board);
       this.combatLog.push(...combatResult.log);
 
-      // 2. Handle Combat Outcomes
       if (!target.isAlive()) {
         defenderDied = true;
-        // Defender dies: Remove defender
-        this.board.setPieceAt(toX, toY, null);
-        
-        // If attacker survived counter-attack, move into the square
+        this.board.setPieceAt(toX, toY, null); // Remove body
         if (attacker.isAlive()) {
           this.board.setPieceAt(fromX, fromY, null);
           this.board.setPieceAt(toX, toY, attacker);
           attacker.moveTo(toX, toY);
         } else {
-          // Attacker also died (Mutual Destruction): Remove attacker too
-          this.board.setPieceAt(fromX, fromY, null);
+          this.board.setPieceAt(fromX, fromY, null); // Both dead
         }
       } else {
-        // Defender lives: Attacker STAYS put (Battle Chess Rule)
-        // If attacker died from counter, remove them
         if (!attacker.isAlive()) {
           this.board.setPieceAt(fromX, fromY, null);
         }
-        // If attacker lives, they just lose HP but don't move
       }
     }
-    // --- NORMAL MOVEMENT ---
+    // Normal Move
     else {
       this.board.setPieceAt(fromX, fromY, null);
       this.board.setPieceAt(toX, toY, attacker);
       attacker.moveTo(toX, toY);
     }
 
-    // Apply special abilities (Healing, etc.)
+    // End of Turn Effects
     const abilityLog = applySpecialAbilities(attacker, this.board.getAlivePieces());
     this.combatLog.push(...abilityLog);
 
@@ -165,6 +142,21 @@ export class GameEngine {
 
     this.selectedPiece = null;
     this.validMoves = [];
+
+    // Apply Environmental Effects (Fire/Water)
+    const envLog = applyEnvironmentalEffects(this.board.getAlivePieces(), this.board);
+    if (envLog.length > 0) this.combatLog.push(...envLog);
+
+    // Remove pieces that died from Fire
+    for(let y=0; y<8; y++) {
+      for(let x=0; x<8; x++) {
+        const p = this.board.getPieceAt(x, y);
+        if (p && !p.isAlive()) {
+          this.board.setPieceAt(x, y, null);
+          this.combatLog.push(`💀 ${p.type} burned to death!`);
+        }
+      }
+    }
 
     const gameOverCheck = this.board.isGameOver();
     if (gameOverCheck.gameOver) {
@@ -180,7 +172,6 @@ export class GameEngine {
   private endTurn(): void {
     this.turnCount++;
     this.currentTurn = this.currentTurn === PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
-
     if (this.gameMode === 'single-player' && this.currentTurn === PieceColor.BLACK) {
       setTimeout(() => this.executeAIMove(), 1000);
     }
@@ -211,8 +202,11 @@ export class GameEngine {
     this.turnCount = 1;
   }
 
-  public getMoveHistory() { return this.moveHistory; }
-  
+  // THIS WAS MISSING
+  public getMoveHistory() { 
+    return this.moveHistory; 
+  }
+
   public isAIThinking(): boolean {
     return this.gameMode === 'single-player' && this.currentTurn === PieceColor.BLACK && this.gameStatus === 'in-progress';
   }

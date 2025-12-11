@@ -1,11 +1,11 @@
 /**
  * CombatSystem.ts
- * Handles all combat logic: damage calculation, counter-attacks, special abilities
- * Pure function module - no side effects on board state
+ * Handles Combat + Class Advantages + Terrain Effects
  */
 
 import { Piece } from './Piece';
-import { PieceType } from './PieceStats';
+import { PieceType, PieceClass } from './PieceStats';
+import { Board, TileType } from './Board';
 
 export interface CombatResult {
   attacker: Piece;
@@ -17,74 +17,109 @@ export interface CombatResult {
 }
 
 /**
- * Calculate damage dealt by attacker to defender
- * Formula: max(ATK - DEF, 1)
+ * Calculate damage with Class Advantages and Terrain
  */
-function calculateDamage(attacker: Piece, defender: Piece): number {
-  const baseDamage = Math.max(attacker.stats.atk - defender.stats.def, 1);
-  return baseDamage;
+function calculateDamage(attacker: Piece, defender: Piece, board?: Board): number {
+  let damage = attacker.stats.atk;
+  
+  // 1. Terrain Defense Bonus (Forest)
+  let defenderDef = defender.stats.def;
+  if (board) {
+    const tile = board.getTileType(defender.x, defender.y);
+    if (tile === TileType.FOREST) {
+      defenderDef += 3; // Forest Bonus
+    }
+  }
+
+  // 2. Class Advantages
+  // Ranged > Tank (Kiting)
+  if (attacker.stats.pClass === PieceClass.RANGED && defender.stats.pClass === PieceClass.TANK) {
+    damage = Math.floor(damage * 1.3);
+  }
+  // Tank > Melee (Outlast)
+  else if (attacker.stats.pClass === PieceClass.TANK && defender.stats.pClass === PieceClass.MELEE) {
+    damage = Math.floor(damage * 1.3);
+  }
+  // Melee > Ranged (Gap Close)
+  else if (attacker.stats.pClass === PieceClass.MELEE && defender.stats.pClass === PieceClass.RANGED) {
+    damage = Math.floor(damage * 1.3);
+  }
+  
+  // 3. Range Penalty for Ranged units shooting far
+  const distance = Math.max(Math.abs(attacker.x - defender.x), Math.abs(attacker.y - defender.y));
+  if (distance > 1) {
+    damage = Math.floor(damage * 0.8); // 20% penalty at max range
+  }
+
+  return Math.max(damage - defenderDef, 1); // Minimum 1 damage
 }
 
-/**
- * Resolve combat between attacker and defender
- * Defender counter-attacks if alive after attack
- */
-export function resolveCombat(attacker: Piece, defender: Piece): CombatResult {
+export function resolveCombat(attacker: Piece, defender: Piece, board?: Board): CombatResult {
   const log: string[] = [];
   
-  // Attacker deals damage
-  const attackDamage = calculateDamage(attacker, defender);
+  const attackDamage = calculateDamage(attacker, defender, board);
   defender.takeDamage(attackDamage);
-  log.push(`${attacker.type} (${attacker.color}) attacks ${defender.type} (${defender.color}) for ${attackDamage} damage!`);
-  log.push(`${defender.type} HP: ${defender.stats.hp}/${defender.stats.maxHP}`);
+  
+  // Log Class Matchups
+  let bonusTxt = "";
+  if (attacker.stats.pClass === PieceClass.RANGED && defender.stats.pClass === PieceClass.TANK) bonusTxt = " (Crit vs Tank!)";
+  if (attacker.stats.pClass === PieceClass.TANK && defender.stats.pClass === PieceClass.MELEE) bonusTxt = " (Crit vs Melee!)";
+  if (attacker.stats.pClass === PieceClass.MELEE && defender.stats.pClass === PieceClass.RANGED) bonusTxt = " (Crit vs Ranged!)";
+
+  log.push(`${attacker.type} attacks ${defender.type} for ${attackDamage}${bonusTxt}`);
 
   let counterDamage = 0;
+  const dist = Math.max(Math.abs(attacker.x - defender.x), Math.abs(attacker.y - defender.y));
 
-  // Defender counter-attacks if alive
   if (defender.isAlive()) {
-    counterDamage = calculateDamage(defender, attacker);
-    attacker.takeDamage(counterDamage);
-    log.push(`${defender.type} (${defender.color}) counter-attacks for ${counterDamage} damage!`);
-    log.push(`${attacker.type} HP: ${attacker.stats.hp}/${attacker.stats.maxHP}`);
+    if (dist <= defender.stats.rng) {
+      counterDamage = calculateDamage(defender, attacker, board);
+      attacker.takeDamage(counterDamage);
+      log.push(`${defender.type} counters for ${counterDamage}`);
+    } else {
+      log.push(`${defender.type} out of range to counter!`);
+    }
   } else {
-    log.push(`${defender.type} (${defender.color}) is defeated!`);
+    log.push(`${defender.type} is defeated!`);
   }
 
   return {
-    attacker,
-    defender,
-    attackDamage,
-    defenderCounterDamage: counterDamage,
-    defenderAlive: defender.isAlive(),
-    log
+    attacker, defender, attackDamage, defenderCounterDamage: counterDamage, defenderAlive: defender.isAlive(), log
   };
 }
 
 /**
- * Apply special ability effects (e.g., King heals allies)
- * Called at end of turn
+ * Apply Tile Effects (Fire/Water) at end of turn
  */
-export function applySpecialAbilities(piece: Piece, allPieces: Piece[]): string[] {
+export function applyEnvironmentalEffects(pieces: Piece[], board: Board): string[] {
   const log: string[] = [];
 
-  if (piece.type === PieceType.KING) {
-    // King heals allies within range 1
-    const alliesInRange = allPieces.filter(p => 
-      p.color === piece.color && 
-      p.id !== piece.id &&
-      Math.abs(p.x - piece.x) <= 1 && 
-      Math.abs(p.y - piece.y) <= 1
-    );
-
-    alliesInRange.forEach(ally => {
-      const healAmount = 5;
-      const oldHP = ally.stats.hp;
-      ally.heal(healAmount);
-      if (ally.stats.hp > oldHP) {
-        log.push(`${piece.color} King heals ${ally.type} for ${healAmount} HP!`);
+  pieces.forEach(p => {
+    const tile = board.getTileType(p.x, p.y);
+    
+    if (tile === TileType.FIRE) {
+      p.takeDamage(10);
+      log.push(`🔥 ${p.type} took 10 FIRE damage!`);
+    }
+    else if (tile === TileType.WATER) {
+      if (p.stats.hp < p.stats.maxHP) {
+        p.heal(5);
+        log.push(`💧 ${p.type} healed 5 HP in Water.`);
       }
-    });
-  }
+    }
+  });
 
+  return log;
+}
+
+export function applySpecialAbilities(piece: Piece, allPieces: Piece[]): string[] {
+  const log: string[] = [];
+  if (piece.type === PieceType.KING) {
+    const allies = allPieces.filter(p => p.color === piece.color && p.id !== piece.id && Math.abs(p.x - piece.x) <= 1 && Math.abs(p.y - piece.y) <= 1);
+    if (allies.length > 0) {
+      allies.forEach(a => a.heal(5));
+      log.push(`👑 King inspires allies (+5 HP)`);
+    }
+  }
   return log;
 }

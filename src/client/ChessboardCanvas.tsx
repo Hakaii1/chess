@@ -1,114 +1,35 @@
 /**
  * ChessboardCanvas.tsx
  * Canvas-based board renderer
- * Features: Animations, Particles, Damage Text, Piece Highlighting
+ * Features: Stat Tooltips, Neon Terrain, Smart Cursor
  */
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Piece, PieceColor, PieceType, ValidMove } from '../core';
+import { Piece, PieceColor, PieceType, ValidMove, PieceClass } from '../core';
+import { TileType } from '../core/Board'; 
 import styles from './ChessboardCanvas.module.css';
 
 interface ChessboardCanvasProps {
   boardState: (Piece | null)[][];
+  terrain?: TileType[][];
   selectedPiece: Piece | null;
   validMoves: ValidMove[];
   onSquareClick: (x: number, y: number) => void;
   isAIThinking: boolean;
-  lastMove?: {
-    fromX: number;
-    fromY: number;
-    toX: number;
-    toY: number;
-    combatResult: any | null;
-  } | null;
+  lastMove?: any;
   boardFlipped?: boolean;
-  gameMode?: 'single-player' | 'two-player';
+  gameMode?: string;
   currentTurn?: PieceColor;
 }
 
 const BOARD_SIZE = 8;
 const SQUARE_SIZE = 70;
-const PIECE_FONT_SIZE = 40;
 const HP_BAR_HEIGHT = 6;
 const HP_BAR_WIDTH = SQUARE_SIZE - 8;
 
 interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  color: string;
-  life: number;
-  size: number;
+  x: number; y: number; vx: number; vy: number; color: string; life: number; size: number;
 }
-
-// Helper function to draw custom premium pieces
-const drawPremiumPiece = (
-  ctx: CanvasRenderingContext2D,
-  piece: Piece,
-  x: number,
-  y: number,
-  size: number
-) => {
-  const isWhite = piece.color === PieceColor.WHITE;
-  const centerX = x + size / 2;
-  const centerY = y + size / 2;
-  const radius = size / 2.2;
-
-  // Base circle with gradient
-  const gradient = ctx.createRadialGradient(centerX - size / 5, centerY - size / 5, 0, centerX, centerY, radius);
-  if (isWhite) {
-    gradient.addColorStop(0, '#ffffff');
-    gradient.addColorStop(0.7, '#f0f0f0');
-    gradient.addColorStop(1, '#d0d0d0');
-  } else {
-    gradient.addColorStop(0, '#444444');
-    gradient.addColorStop(0.7, '#222222');
-    gradient.addColorStop(1, '#000000');
-  }
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Metallic shine
-  const shineGradient = ctx.createLinearGradient(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
-  shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-  shineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
-  shineGradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
-  ctx.fillStyle = shineGradient;
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Highlight
-  ctx.fillStyle = isWhite ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.3)';
-  ctx.beginPath();
-  ctx.arc(centerX - radius / 3, centerY - radius / 3, radius / 4, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Border
-  ctx.strokeStyle = isWhite ? '#888888' : '#ffdd00';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Draw piece symbol with glow
-  const symbol = PIECE_SYMBOLS[piece.type][piece.color];
-  ctx.fillStyle = isWhite ? '#222222' : '#ffdd00';
-  ctx.font = `bold ${size * 0.65}px serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  
-  // Shadow for contrast
-  ctx.fillStyle = isWhite ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 221, 0, 0.2)';
-  ctx.fillText(symbol, centerX, centerY + 2);
-  
-  // Main text
-  ctx.fillStyle = isWhite ? '#000000' : '#ffdd00';
-  ctx.fillText(symbol, centerX, centerY);
-};
 
 const PIECE_SYMBOLS: Record<PieceType, Record<PieceColor, string>> = {
   [PieceType.PAWN]: { [PieceColor.WHITE]: '♙', [PieceColor.BLACK]: '♟' },
@@ -119,8 +40,15 @@ const PIECE_SYMBOLS: Record<PieceType, Record<PieceColor, string>> = {
   [PieceType.KING]: { [PieceColor.WHITE]: '♔', [PieceColor.BLACK]: '♚' }
 };
 
+const CLASS_ICONS: Record<PieceClass, string> = {
+  [PieceClass.TANK]: '🛡️',
+  [PieceClass.MELEE]: '⚔️',
+  [PieceClass.RANGED]: '🏹'
+};
+
 export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
   boardState,
+  terrain,
   selectedPiece,
   validMoves,
   onSquareClick,
@@ -131,18 +59,10 @@ export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
   currentTurn
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  // Animation state
-  const [animation, setAnimation] = useState<{
-    startTime: number;
-    type: 'combat' | 'move';
-    data: any;
-  } | null>(null);
-
-  // Particles state
+  const [animation, setAnimation] = useState<any>(null);
   const particles = useRef<Particle[]>([]);
+  const [hoveredSquare, setHoveredSquare] = useState<{x: number, y: number} | null>(null);
 
-  // Initialize animation when move happens
   useEffect(() => {
     if (lastMove) {
       setAnimation({
@@ -150,20 +70,15 @@ export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
         type: lastMove.combatResult ? 'combat' : 'move',
         data: lastMove
       });
-
-      // Spawn particles if a piece died
       if (lastMove.combatResult && !lastMove.combatResult.defenderAlive) {
         spawnParticles(lastMove.toX, lastMove.toY, lastMove.combatResult.defender.color);
       }
-      
       const timer = setTimeout(() => setAnimation(null), 1500);
       return () => clearTimeout(timer);
     }
   }, [lastMove]);
 
-  // Helper to convert board coordinates when flipped
   const getBoardCoordinates = (x: number, y: number) => {
-    // Only apply visual flip in two-player mode
     if (gameMode === 'two-player' && boardFlipped) {
       return { x: 7 - x, y: 7 - y };
     }
@@ -174,8 +89,6 @@ export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
     const coords = getBoardCoordinates(gx, gy);
     const centerX = coords.x * SQUARE_SIZE + SQUARE_SIZE / 2;
     const centerY = coords.y * SQUARE_SIZE + SQUARE_SIZE / 2;
-    
-    // Vibrant particle colors based on piece color
     const colors = color === PieceColor.WHITE 
       ? ['#ffffff', '#e0e0e0', '#ffdd00', '#ff99ff']
       : ['#ffdd00', '#ff9900', '#ff33ff', '#ff0066'];
@@ -195,7 +108,6 @@ export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
     }
   };
 
-  // Main Render Loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -205,280 +117,310 @@ export const ChessboardCanvas: React.FC<ChessboardCanvasProps> = ({
     let animationFrameId: number;
 
     const render = () => {
-      // 1. Draw Board - Premium gradient background
-      const gradientBg = ctx.createLinearGradient(0, 0, BOARD_SIZE * SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE);
-      gradientBg.addColorStop(0, '#1a0f2e');
-      gradientBg.addColorStop(0.5, '#2d1b4e');
-      gradientBg.addColorStop(1, '#1a0f2e');
-      ctx.fillStyle = gradientBg;
+      // 1. Draw Board Background
+      ctx.fillStyle = '#1a0f2e';
       ctx.fillRect(0, 0, BOARD_SIZE * SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE);
 
-      // Draw premium checkered pattern
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE; x++) {
           const renderCoords = getBoardCoordinates(x, y);
           const isLight = (x + y) % 2 === 0;
-          
-          if (isLight) {
-            // Light squares - warm golden tone
-            ctx.fillStyle = '#e8d5b7';
-            ctx.fillRect(renderCoords.x * SQUARE_SIZE, renderCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-            
-            // Subtle texture overlay
-            ctx.fillStyle = 'rgba(200, 180, 150, 0.05)';
-            ctx.fillRect(renderCoords.x * SQUARE_SIZE, renderCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-          } else {
-            // Dark squares - deep purple-brown
-            ctx.fillStyle = '#5d3a5d';
-            ctx.fillRect(renderCoords.x * SQUARE_SIZE, renderCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-            
-            // Subtle shine effect
-            ctx.fillStyle = 'rgba(100, 50, 100, 0.1)';
-            ctx.fillRect(renderCoords.x * SQUARE_SIZE, renderCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+          const px = renderCoords.x * SQUARE_SIZE;
+          const py = renderCoords.y * SQUARE_SIZE;
+
+          // Default Colors
+          let fillColor = isLight ? '#e8d5b7' : '#5d3a5d';
+          let overlayColor = null;
+
+          // TERRAIN RENDERING (Neon Style)
+          if (terrain) {
+            const tileType = terrain[y][x];
+            if (tileType === 'fire') {
+              fillColor = isLight ? '#3a1a1a' : '#2a0f0f';
+              overlayColor = 'rgba(255, 50, 50, 0.15)'; // Red glow
+            }
+            if (tileType === 'water') {
+              fillColor = isLight ? '#1a2a3a' : '#0f1f2f';
+              overlayColor = 'rgba(50, 100, 255, 0.15)'; // Blue glow
+            }
+            if (tileType === 'forest') {
+              fillColor = isLight ? '#1a3a1a' : '#0f2f0f';
+              overlayColor = 'rgba(50, 255, 50, 0.1)'; // Green glow
+            }
+          }
+
+          ctx.fillStyle = fillColor;
+          ctx.fillRect(px, py, SQUARE_SIZE, SQUARE_SIZE);
+
+          if (overlayColor) {
+            ctx.fillStyle = overlayColor;
+            ctx.fillRect(px, py, SQUARE_SIZE, SQUARE_SIZE);
+            // Border glow
+            ctx.strokeStyle = overlayColor.replace('0.15', '0.5');
+            ctx.lineWidth = 1;
+            ctx.strokeRect(px + 2, py + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4);
+          }
+
+          // Add icons for terrain
+          if (terrain && terrain[y][x] !== 'normal') {
+             ctx.font = '16px Arial';
+             ctx.textAlign = 'right';
+             ctx.textBaseline = 'top';
+             const icon = terrain[y][x] === 'fire' ? '🔥' : terrain[y][x] === 'water' ? '💧' : '🌲';
+             ctx.fillText(icon, px + SQUARE_SIZE - 4, py + 4);
           }
         }
       }
 
-      // Border around board
+      // Border
       ctx.strokeStyle = '#d4af37';
       ctx.lineWidth = 3;
       ctx.strokeRect(0, 0, BOARD_SIZE * SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE);
 
-      // 2. Highlight Last Move
+      // 2. Highlights & Moves
       if (lastMove) {
-        const fromCoords = getBoardCoordinates(lastMove.fromX, lastMove.fromY);
-        const toCoords = getBoardCoordinates(lastMove.toX, lastMove.toY);
-        ctx.fillStyle = 'rgba(255, 200, 50, 0.3)';
-        ctx.fillRect(fromCoords.x * SQUARE_SIZE, fromCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-        ctx.fillRect(toCoords.x * SQUARE_SIZE, toCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+        const from = getBoardCoordinates(lastMove.fromX, lastMove.fromY);
+        const to = getBoardCoordinates(lastMove.toX, lastMove.toY);
+        ctx.fillStyle = 'rgba(255, 200, 50, 0.2)';
+        ctx.fillRect(from.x * SQUARE_SIZE, from.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+        ctx.fillRect(to.x * SQUARE_SIZE, to.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
       }
 
-      // 3. Highlight Selected
       if (selectedPiece) {
-        const selCoords = getBoardCoordinates(selectedPiece.x, selectedPiece.y);
-        ctx.fillStyle = 'rgba(200, 100, 255, 0.4)';
-        ctx.fillRect(selCoords.x * SQUARE_SIZE, selCoords.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-        // Glow effect
-        ctx.strokeStyle = 'rgba(200, 100, 255, 0.8)';
+        const sel = getBoardCoordinates(selectedPiece.x, selectedPiece.y);
+        ctx.fillStyle = 'rgba(200, 100, 255, 0.3)';
+        ctx.fillRect(sel.x * SQUARE_SIZE, sel.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+        ctx.strokeStyle = '#d4af37';
         ctx.lineWidth = 2;
-        ctx.strokeRect(selCoords.x * SQUARE_SIZE + 2, selCoords.y * SQUARE_SIZE + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4);
+        ctx.strokeRect(sel.x * SQUARE_SIZE, sel.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
       }
 
-      // 4. Valid Moves with premium styling
       validMoves.forEach(move => {
-        const moveCoords = getBoardCoordinates(move.x, move.y);
+        const mc = getBoardCoordinates(move.x, move.y);
+        const cx = mc.x * SQUARE_SIZE + SQUARE_SIZE / 2;
+        const cy = mc.y * SQUARE_SIZE + SQUARE_SIZE / 2;
+        
         if (move.isAttack) {
-          const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
-          ctx.fillStyle = `rgba(255, 60, 60, ${0.3 + pulse * 0.3})`;
+          ctx.fillStyle = 'rgba(255, 50, 50, 0.5)';
           ctx.beginPath();
-          ctx.arc(
-            moveCoords.x * SQUARE_SIZE + SQUARE_SIZE / 2,
-            moveCoords.y * SQUARE_SIZE + SQUARE_SIZE / 2,
-            20 + pulse * 5,
-            0,
-            Math.PI * 2
-          );
+          ctx.arc(cx, cy, 25, 0, Math.PI * 2);
           ctx.fill();
-          // Inner glow
-          ctx.strokeStyle = `rgba(255, 100, 100, ${0.6 + pulse * 0.2})`;
+          ctx.strokeStyle = 'red';
           ctx.lineWidth = 2;
           ctx.stroke();
         } else {
-          ctx.fillStyle = 'rgba(100, 200, 100, 0.8)';
+          ctx.fillStyle = 'rgba(100, 255, 100, 0.5)';
           ctx.beginPath();
-          ctx.arc(
-            moveCoords.x * SQUARE_SIZE + SQUARE_SIZE / 2,
-            moveCoords.y * SQUARE_SIZE + SQUARE_SIZE / 2,
-            10,
-            0,
-            Math.PI * 2
-          );
+          ctx.arc(cx, cy, 12, 0, Math.PI * 2);
           ctx.fill();
         }
       });
 
-      // 5. Draw Pieces with custom rendering
+      // 3. Pieces
       boardState.forEach((row, y) => {
         row.forEach((piece, x) => {
           if (!piece) return;
-
-          const pieceCoords = getBoardCoordinates(x, y);
-          const pieceX = pieceCoords.x * SQUARE_SIZE;
-          const pieceY = pieceCoords.y * SQUARE_SIZE;
-
-          drawPremiumPiece(ctx, piece, pieceX, pieceY, SQUARE_SIZE);
-
-          // HP Bar with premium styling
-          if (piece.stats.hp < piece.stats.maxHP) {
-            const healthPercent = piece.getHealthPercent();
-            const barX = pieceX + 4;
-            const barY = pieceY + SQUARE_SIZE - HP_BAR_HEIGHT - 4;
-            const barWidth = HP_BAR_WIDTH;
-
-            // Background
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(barX, barY, barWidth, HP_BAR_HEIGHT);
-            ctx.strokeStyle = 'rgba(200, 100, 255, 0.5)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(barX, barY, barWidth, HP_BAR_HEIGHT);
-
-            // Health fill with gradient
-            const healthGradient = ctx.createLinearGradient(barX, barY, barX + barWidth, barY);
-            if (healthPercent > 0.5) {
-              healthGradient.addColorStop(0, '#00ff00');
-              healthGradient.addColorStop(1, '#ffff00');
-            } else if (healthPercent > 0.25) {
-              healthGradient.addColorStop(0, '#ffff00');
-              healthGradient.addColorStop(1, '#ff6600');
-            } else {
-              healthGradient.addColorStop(0, '#ff6600');
-              healthGradient.addColorStop(1, '#ff0000');
-            }
-            ctx.fillStyle = healthGradient;
-            ctx.fillRect(barX, barY, barWidth * healthPercent, HP_BAR_HEIGHT);
-          }
+          const pc = getBoardCoordinates(x, y);
+          drawPiece(ctx, piece, pc.x * SQUARE_SIZE, pc.y * SQUARE_SIZE);
         });
       });
 
-      // 6. Update & Draw Particles with glow
+      // 4. Particles & Combat Text (Existing logic...)
+      // ... (Keeping particles logic from before)
       for (let i = particles.current.length - 1; i >= 0; i--) {
         const p = particles.current[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life -= 0.03;
-        p.vy += 0.3; // Gravity
-        p.vx *= 0.98; // Air resistance
-
-        if (p.life <= 0) {
-          particles.current.splice(i, 1);
-        } else {
-          // Glow effect
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = p.life * 0.6;
-          ctx.shadowBlur = 10;
-          ctx.shadowColor = p.color;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size + 2, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Core
-          ctx.globalAlpha = p.life;
-          ctx.shadowBlur = 0;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1.0;
+        p.x += p.vx; p.y += p.vy; p.life -= 0.03; p.vy += 0.3; p.vx *= 0.98;
+        if (p.life <= 0) particles.current.splice(i, 1);
+        else {
+          ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1.0;
         }
       }
 
-      // 7. Draw Combat Text with premium styling
       if (animation && animation.type === 'combat') {
         const { toX, toY, fromX, fromY, combatResult } = animation.data;
-        const toCoords = getBoardCoordinates(toX, toY);
-        const fromCoords = getBoardCoordinates(fromX, fromY);
+        const to = getBoardCoordinates(toX, toY);
+        const from = getBoardCoordinates(fromX, fromY);
         const elapsed = Date.now() - animation.startTime;
         const duration = 1200;
 
         if (elapsed < duration) {
-          const centerX = toCoords.x * SQUARE_SIZE + SQUARE_SIZE / 2;
-          const centerY = toCoords.y * SQUARE_SIZE + SQUARE_SIZE / 2;
-          const floatOffset = (elapsed / duration) * 60;
-          const alpha = Math.max(0, 1 - (elapsed / duration * 0.8));
-          const scale = 1 + (elapsed / duration) * 0.3;
-
-          // Damage Text with glow
-          const dmgText = `-${combatResult.attackDamage}`;
-          ctx.font = 'bold 42px Arial';
+          const alpha = Math.max(0, 1 - (elapsed / duration));
+          const offset = (elapsed / duration) * 50;
+          
+          ctx.font = 'bold 36px Arial';
           ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
           
-          // Glow layers
-          for (let i = 5; i > 0; i--) {
-            ctx.fillStyle = `rgba(255, 100, 100, ${alpha * 0.2 * (1 - i / 5)})`;
-            ctx.fillText(dmgText, centerX, centerY - floatOffset - i);
-          }
-          
+          // Damage
           ctx.fillStyle = `rgba(255, 50, 50, ${alpha})`;
-          ctx.strokeStyle = `rgba(255, 200, 100, ${alpha * 0.8})`;
-          ctx.lineWidth = 3;
-          ctx.strokeText(dmgText, centerX, centerY - floatOffset);
-          ctx.fillText(dmgText, centerX, centerY - floatOffset);
+          ctx.fillText(`-${combatResult.attackDamage}`, to.x * SQUARE_SIZE + 35, to.y * SQUARE_SIZE + 35 - offset);
 
-          // Counter Damage
+          // Counter
           if (combatResult.defenderCounterDamage > 0) {
-            const originX = fromCoords.x * SQUARE_SIZE + SQUARE_SIZE / 2;
-            const originY = fromCoords.y * SQUARE_SIZE + SQUARE_SIZE / 2;
-            const counterText = `-${combatResult.defenderCounterDamage}`;
-            
-            // Glow layers
-            for (let i = 5; i > 0; i--) {
-              ctx.fillStyle = `rgba(255, 150, 50, ${alpha * 0.2 * (1 - i / 5)})`;
-              ctx.fillText(counterText, originX, originY - floatOffset - i);
-            }
-            
-            ctx.fillStyle = `rgba(255, 140, 0, ${alpha})`;
-            ctx.strokeStyle = `rgba(255, 200, 100, ${alpha * 0.8})`;
-            ctx.lineWidth = 3;
-            ctx.strokeText(counterText, originX, originY - floatOffset);
-            ctx.fillText(counterText, originX, originY - floatOffset);
+            ctx.fillStyle = `rgba(255, 150, 0, ${alpha})`;
+            ctx.fillText(`-${combatResult.defenderCounterDamage}`, from.x * SQUARE_SIZE + 35, from.y * SQUARE_SIZE + 35 - offset);
           }
         }
       }
 
-      // 8. AI Thinking Overlay with premium styling
-      if (isAIThinking) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.fillRect(0, 0, BOARD_SIZE * SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE);
+      // 5. TOOLTIPS (New Feature)
+      if (hoveredSquare && !isAIThinking) {
+        // Need to reverse flip logic to get actual board index
+        let actualX = hoveredSquare.x;
+        let actualY = hoveredSquare.y;
         
-        const pulse = (Math.sin(Date.now() / 300) + 1) / 2;
-        
-        // Animated glow
-        ctx.fillStyle = `rgba(200, 100, 255, ${0.3 + pulse * 0.3})`;
-        ctx.beginPath();
-        ctx.arc((BOARD_SIZE * SQUARE_SIZE) / 2, (BOARD_SIZE * SQUARE_SIZE) / 2, 40 + pulse * 20, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulse * 0.2})`;
-        ctx.font = 'bold 28px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('AI is thinking...', (BOARD_SIZE * SQUARE_SIZE) / 2, (BOARD_SIZE * SQUARE_SIZE) / 2);
+        if (gameMode === 'two-player' && boardFlipped) {
+          actualX = 7 - hoveredSquare.x;
+          actualY = 7 - hoveredSquare.y;
+        }
+
+        if (actualX >= 0 && actualX < 8 && actualY >= 0 && actualY < 8) {
+          const hoveredPiece = boardState[actualY][actualX];
+          if (hoveredPiece) {
+            drawTooltip(ctx, hoveredPiece, hoveredSquare.x * SQUARE_SIZE, hoveredSquare.y * SQUARE_SIZE, terrain ? terrain[actualY][actualX] : 'normal');
+          }
+        }
       }
 
       animationFrameId = requestAnimationFrame(render);
     };
-
     render();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [boardState, selectedPiece, validMoves, isAIThinking, animation, lastMove, boardFlipped]);
+  }, [boardState, terrain, selectedPiece, validMoves, isAIThinking, animation, lastMove, boardFlipped, hoveredSquare]);
 
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    let x = Math.floor((e.clientX - rect.left) / SQUARE_SIZE);
-    let y = Math.floor((e.clientY - rect.top) / SQUARE_SIZE);
+  const drawPiece = (ctx: CanvasRenderingContext2D, piece: Piece, x: number, y: number) => {
+    const cx = x + SQUARE_SIZE / 2;
+    const cy = y + SQUARE_SIZE / 2;
+    const isWhite = piece.color === PieceColor.WHITE;
+
+    // Piece Background
+    ctx.beginPath();
+    ctx.arc(cx, cy, 28, 0, Math.PI * 2);
+    ctx.fillStyle = isWhite ? '#ddd' : '#333';
+    ctx.fill();
+    ctx.strokeStyle = isWhite ? '#fff' : '#000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Symbol
+    ctx.font = '40px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = isWhite ? 'black' : 'white'; // Contrast text
+    ctx.fillText(PIECE_SYMBOLS[piece.type][piece.color], cx, cy);
+
+    // HP Bar
+    const hpPct = piece.stats.hp / piece.stats.maxHP;
+    const barW = SQUARE_SIZE - 10;
+    const barX = x + 5;
+    const barY = y + SQUARE_SIZE - 8;
     
-    // Flip only in two-player mode (vs AI shouldn't flip)
-    if (gameMode === 'two-player' && boardFlipped) {
-      x = 7 - x;
-      y = 7 - y;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(barX, barY, barW, 6);
+    ctx.fillStyle = hpPct > 0.5 ? '#00ff00' : hpPct > 0.2 ? '#ffff00' : '#ff0000';
+    ctx.fillRect(barX, barY, barW * hpPct, 6);
+  };
+
+  const drawTooltip = (ctx: CanvasRenderingContext2D, piece: Piece, x: number, y: number, tileType: string) => {
+    // Tooltip Box
+    const boxW = 160;
+    const boxH = 95;
+    let boxX = x + 20;
+    let boxY = y - 100;
+
+    // Boundary check
+    if (boxY < 0) boxY = y + 80;
+    if (boxX + boxW > 560) boxX = x - 140;
+
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = 'rgba(20, 20, 30, 0.95)';
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeStyle = '#d4af37';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+    ctx.shadowBlur = 0;
+
+    // Text
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    
+    // Header: Icon + Name
+    const name = piece.type.charAt(0).toUpperCase() + piece.type.slice(1);
+    ctx.fillText(`${CLASS_ICONS[piece.stats.pClass]} ${name}`, boxX + 10, boxY + 10);
+
+    // Stats
+    ctx.font = '12px monospace';
+    ctx.fillStyle = '#ccc';
+    ctx.fillText(`HP:  ${piece.stats.hp}/${piece.stats.maxHP}`, boxX + 10, boxY + 35);
+    ctx.fillText(`ATK: ${piece.stats.atk}`, boxX + 10, boxY + 50);
+    
+    // Def + Terrain Bonus
+    let defText = `DEF: ${piece.stats.def}`;
+    if (tileType === 'forest') {
+      ctx.fillStyle = '#66ff66'; // Green for buff
+      defText += ` (+3 🌲)`;
     }
+    ctx.fillText(defText, boxX + 10, boxY + 65);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = Math.floor((e.clientX - rect.left) / SQUARE_SIZE);
+    const y = Math.floor((e.clientY - rect.top) / SQUARE_SIZE);
     
     if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) {
-      onSquareClick(x, y);
+      setHoveredSquare({x, y});
+      
+      // Dynamic Cursor
+      let cursor = 'default';
+      const isPiece = boardState.some(row => row.some(p => p && p.x === x && p.y === y)); // Simplified check
+      
+      // Check if this square is a valid move/attack
+      const validMove = validMoves.find(m => {
+        let checkX = m.x; let checkY = m.y;
+        if (gameMode === 'two-player' && boardFlipped) {
+           checkX = 7 - checkX; checkY = 7 - checkY;
+        }
+        return checkX === x && checkY === y;
+      });
+
+      if (validMove) {
+        cursor = validMove.isAttack ? 'crosshair' : 'pointer';
+      } else if (isPiece && !isAIThinking) {
+        cursor = 'help'; // Hovering over a piece for stats
+      }
+      
+      if (canvasRef.current) canvasRef.current.style.cursor = cursor;
+    } else {
+      setHoveredSquare(null);
     }
+  };
+
+  const handleMouseLeave = () => setHoveredSquare(null);
+
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!hoveredSquare) return;
+    let { x, y } = hoveredSquare;
+    if (gameMode === 'two-player' && boardFlipped) {
+      x = 7 - x; y = 7 - y;
+    }
+    onSquareClick(x, y);
   };
 
   return (
     <div className={styles.canvasContainer}>
       <canvas
         ref={canvasRef}
-        width={BOARD_SIZE * SQUARE_SIZE}
-        height={BOARD_SIZE * SQUARE_SIZE}
+        width={560}
+        height={560}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         onClick={handleCanvasClick}
         className={styles.canvas}
-        style={{ cursor: isAIThinking ? 'wait' : 'pointer' }}
       />
     </div>
   );

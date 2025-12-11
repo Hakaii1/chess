@@ -1,18 +1,28 @@
 /**
  * Board.ts
- * Manages the 8x8 game board and piece placement
+ * Manages the 8x8 game board, piece placement, and TERRAIN
  */
 
 import { Piece } from './Piece';
 import { PieceType, PieceColor } from './PieceStats';
 
+export enum TileType {
+  NORMAL = 'normal',
+  FIRE = 'fire',     // Deals damage
+  WATER = 'water',   // Heals
+  FOREST = 'forest'  // Bonus Defense
+}
+
 export class Board {
   public squares: (Piece | null)[][];
+  public terrain: TileType[][]; // New: Stores terrain data
 
   constructor() {
     this.squares = Array(8).fill(null).map(() => Array(8).fill(null));
-    // Only initialize if we are the main instance. 
+    this.terrain = Array(8).fill(null).map(() => Array(8).fill(TileType.NORMAL));
+    
     this.initializeBoard();
+    this.generateTerrain();
   }
 
   private initializeBoard(): void {
@@ -23,6 +33,22 @@ export class Board {
     // Black pieces at top (rows 0-1)
     this.placeRow(0, PieceColor.BLACK);
     this.placePawns(1, PieceColor.BLACK);
+  }
+
+  // Randomly place elemental tiles in the middle rows (2-5)
+  private generateTerrain(): void {
+    for (let y = 2; y <= 5; y++) {
+      for (let x = 0; x < 8; x++) {
+        const rand = Math.random();
+        if (rand < 0.15) {
+          this.terrain[y][x] = TileType.FIRE;
+        } else if (rand < 0.30) {
+          this.terrain[y][x] = TileType.WATER;
+        } else if (rand < 0.45) {
+          this.terrain[y][x] = TileType.FOREST;
+        }
+      }
+    }
   }
 
   private placeRow(row: number, color: PieceColor): void {
@@ -47,6 +73,11 @@ export class Board {
   public getPieceAt(x: number, y: number): Piece | null {
     if (x < 0 || x >= 8 || y < 0 || y >= 8) return null;
     return this.squares[y][x];
+  }
+
+  public getTileType(x: number, y: number): TileType {
+    if (x < 0 || x >= 8 || y < 0 || y >= 8) return TileType.NORMAL;
+    return this.terrain[y][x];
   }
 
   public setPieceAt(x: number, y: number, piece: Piece | null): void {
@@ -112,10 +143,9 @@ export class Board {
 
   public clone(): Board {
     const cloned = new Board();
-    // Overwrite the initialized board with the copied state
-    cloned.squares = this.squares.map(row =>
-      row.map(piece => piece ? piece.clone() : null)
-    );
+    cloned.squares = this.squares.map(row => row.map(piece => piece ? piece.clone() : null));
+    // Clone terrain too so AI knows about it
+    cloned.terrain = this.terrain.map(row => [...row]);
     return cloned;
   }
 }
