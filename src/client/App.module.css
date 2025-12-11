@@ -2,9 +2,10 @@
   display: flex;
   gap: 20px;
   padding: 20px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
   min-height: 100vh;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: white;
 }
 
 .mainContent {
@@ -12,6 +13,63 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.5s ease-out;
+}
+
+.overlayTitle {
+  font-size: 4rem;
+  font-weight: 900;
+  color: #f1c40f;
+  text-transform: uppercase;
+  margin: 0;
+  text-shadow: 0 0 20px rgba(241, 196, 15, 0.5);
+  letter-spacing: 2px;
+}
+
+.overlaySubtitle {
+  font-size: 2rem;
+  color: #ecf0f1;
+  margin: 10px 0 30px 0;
+}
+
+.overlayButton {
+  padding: 15px 40px;
+  font-size: 1.5rem;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.overlayButton:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(231, 76, 60, 0.6);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 @media (max-width: 900px) {
@@ -19,9 +77,5 @@
     flex-direction: column;
     gap: 15px;
     padding: 15px;
-  }
-
-  .mainContent {
-    gap: 15px;
   }
 }

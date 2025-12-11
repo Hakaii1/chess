@@ -5,14 +5,14 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { GameEngine, PieceColor, ValidMove, Piece } from '../core';
+import { GameEngine } from '../core';
 
 /**
  * Custom hook to manage game state
  */
 export function useGameEngine(gameMode: 'single-player' | 'multiplayer' = 'single-player') {
   const [engine] = useState(() => new GameEngine(gameMode));
-  const [gameState, setGameState] = useState({
+  const [gameState, setGameState] = useState(() => ({
     boardState: engine.getBoardState(),
     currentTurn: engine.getCurrentTurn(),
     selectedPiece: engine.getSelectedPiece(),
@@ -20,12 +20,18 @@ export function useGameEngine(gameMode: 'single-player' | 'multiplayer' = 'singl
     combatLog: engine.getCombatLog(),
     gameStatus: engine.getGameStatus(),
     turnCount: engine.getTurnCount(),
-    winner: engine.getWinner()
-  });
+    winner: engine.getWinner(),
+    lastMove: null as any,
+    isAIThinking: engine.isAIThinking()
+  }));
 
-  // Update UI when game state changes
+  // Update UI and other side-effects based on engine
   const updateGameState = useCallback(() => {
-    setGameState({
+    const history = engine.getMoveHistory();
+    const lastMove = history.length > 0 ? history[history.length - 1] : null;
+
+    // Build next state snapshot from engine
+    const nextState = {
       boardState: engine.getBoardState(),
       currentTurn: engine.getCurrentTurn(),
       selectedPiece: engine.getSelectedPiece(),
@@ -33,24 +39,34 @@ export function useGameEngine(gameMode: 'single-player' | 'multiplayer' = 'singl
       combatLog: engine.getCombatLog(),
       gameStatus: engine.getGameStatus(),
       turnCount: engine.getTurnCount(),
-      winner: engine.getWinner()
-    });
+      winner: engine.getWinner(),
+      lastMove,
+      isAIThinking: engine.isAIThinking()
+    };
+
+    setGameState(nextState);
   }, [engine]);
 
   const handleSelectPiece = useCallback((x: number, y: number) => {
     engine.selectPiece(x, y);
-    updateGameState();
-  }, [engine, updateGameState]);
+    setGameState(prev => ({ ...prev, selectedPiece: engine.getSelectedPiece(), validMoves: engine.getValidMoves() }));
+  }, [engine]);
 
   const handleDeselectPiece = useCallback(() => {
     engine.deselectPiece();
-    updateGameState();
-  }, [engine, updateGameState]);
+    setGameState(prev => ({ ...prev, selectedPiece: null, validMoves: [] }));
+  }, [engine]);
 
   const handleExecuteMove = useCallback((toX: number, toY: number) => {
     const success = engine.executeMove(toX, toY);
     if (success) {
-      updateGameState();
+      // engine may schedule AI move; give engine a tick and then sync
+      setTimeout(() => updateGameState(), 0);
+
+      // If AI will think, schedule another sync after AI completes (engine uses 1s delay)
+      if (engine.isAIThinking()) {
+        setTimeout(() => updateGameState(), 1200);
+      }
     }
     return success;
   }, [engine, updateGameState]);
@@ -60,16 +76,18 @@ export function useGameEngine(gameMode: 'single-player' | 'multiplayer' = 'singl
     updateGameState();
   }, [engine, updateGameState]);
 
-  // Trigger update when AI is thinking (for UI feedback)
+  // Poll engine to keep UI in sync while AI is thinking or moves happen outside React
   useEffect(() => {
-    const aiCheckInterval = setInterval(() => {
-      if (gameState.gameStatus === 'in-progress') {
+    const interval = setInterval(() => {
+      // Only update if something changed to avoid excessive renders
+      const isThinking = engine.isAIThinking();
+      if (isThinking !== gameState.isAIThinking || engine.getTurnCount() !== gameState.turnCount || engine.getGameStatus() !== gameState.gameStatus) {
         updateGameState();
       }
-    }, 500);
+    }, 200);
 
-    return () => clearInterval(aiCheckInterval);
-  }, [gameState.gameStatus, updateGameState]);
+    return () => clearInterval(interval);
+  }, [engine, gameState.isAIThinking, gameState.turnCount, gameState.gameStatus, updateGameState]);
 
   return {
     engine,
@@ -78,6 +96,7 @@ export function useGameEngine(gameMode: 'single-player' | 'multiplayer' = 'singl
     deselectPiece: handleDeselectPiece,
     executeMove: handleExecuteMove,
     resetGame: handleResetGame,
-    isAIThinking: engine.isAIThinking()
+    // expose reactive value from state
+    isAIThinking: gameState.isAIThinking
   };
 }

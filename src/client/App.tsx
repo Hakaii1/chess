@@ -26,9 +26,8 @@ export const App: React.FC = () => {
       return;
     }
 
-    // If a piece is selected and this is a valid move
     if (gameState.selectedPiece) {
-      const isValidMove = gameState.validMoves.some(m => m.x === x && m.y === y);
+      const isValidMove = (gameState.validMoves || []).some((m: any) => m.x === x && m.y === y);
       if (isValidMove) {
         executeMove(x, y);
         return;
@@ -37,7 +36,6 @@ export const App: React.FC = () => {
       }
     }
 
-    // Try to select piece at this position
     selectPiece(x, y);
   };
 
@@ -50,7 +48,22 @@ export const App: React.FC = () => {
           validMoves={gameState.validMoves}
           onSquareClick={handleSquareClick}
           isAIThinking={isAIThinking}
+          lastMove={gameState.lastMove}
         />
+        
+        {/* Game Over Overlay */}
+        {gameState.gameStatus === 'game-over' && (
+          <div className={styles.overlay}>
+            <h1 className={styles.overlayTitle}>Victory!</h1>
+            <p className={styles.overlaySubtitle}>
+              {gameState.winner === PieceColor.WHITE ? 'White' : 'Black'} Wins the Battle
+            </p>
+            <button className={styles.overlayButton} onClick={resetGame}>
+              Play Again
+            </button>
+          </div>
+        )}
+
         <CombatLog logs={gameState.combatLog} />
       </div>
       <Sidebar
@@ -59,6 +72,7 @@ export const App: React.FC = () => {
         turnCount={gameState.turnCount}
         winner={gameState.winner}
         onResetGame={resetGame}
+        boardState={gameState.boardState}
       />
     </div>
   );
