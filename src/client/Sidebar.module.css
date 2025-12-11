@@ -24,15 +24,16 @@
   flex-direction: column;
   align-items: center;
   min-width: 180px;
-  background: rgba(0, 0, 0, 0.3);
+  /* Dark Glass */
+  background: rgba(30, 20, 40, 0.5);
   padding: 5px 15px;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.2);
 }
 
 .turnIndicator {
   font-size: 0.7rem;
-  color: #888;
+  color: #bdc3c7;
   letter-spacing: 2px;
   font-weight: 600;
 }
@@ -42,7 +43,12 @@
   font-weight: 900;
   letter-spacing: 1px;
   text-transform: uppercase;
-  text-shadow: 0 0 10px currentColor;
+  /* Gold Gradient Text */
+  background: linear-gradient(135deg, #f1c40f, #e67e22);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 5px rgba(241, 196, 15, 0.2));
 }
 
 .bossBarWrapper {
@@ -57,15 +63,15 @@
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 1px;
+  color: #d4af37;
 }
 
 .bossBarTrack {
-  height: 8px;
-  background: rgba(50, 50, 50, 0.5);
+  height: 6px;
+  background: rgba(0, 0, 0, 0.6);
   border-radius: 4px;
   overflow: hidden;
-  position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.2);
 }
 
 .bossBarFill {
@@ -75,17 +81,17 @@
 
 .bossBarValue {
   font-size: 0.7rem;
-  color: #aaa;
+  color: #888;
   text-align: right;
 }
 
-/* Premium Buttons */
+/* Updated Buttons to match BattleScene */
 .backButton {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ccc;
+  background: transparent;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: #d4af37;
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
@@ -93,21 +99,22 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .backButton:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: #fff;
-  color: #fff;
-  transform: translateX(-2px);
+  background: rgba(212, 175, 55, 0.1);
+  border-color: #d4af37;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.1);
 }
 
 .resetButton {
-  background: linear-gradient(135deg, #ff9900 0%, #ff5500 100%);
-  border: none;
-  color: #fff;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(189, 155, 45, 0.1));
+  border: 1px solid rgba(212, 175, 55, 0.6);
+  color: #f1c40f;
   padding: 8px 18px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 0.8rem;
   font-weight: 800;
   cursor: pointer;
@@ -115,14 +122,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 0 10px rgba(255, 100, 0, 0.3);
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .resetButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(255, 100, 0, 0.5);
-  background: linear-gradient(135deg, #ffaa33 0%, #ff6600 100%);
+  background: rgba(212, 175, 55, 0.3);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+  transform: translateY(-1px);
 }
 
 .resetIcon {

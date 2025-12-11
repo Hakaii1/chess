@@ -4,7 +4,7 @@
  */
 
 export { GameEngine } from './GameEngine';
-export type { GameMode, GameStatus, GameEvent } from './GameEngine';
+export type { GameMode, GameStatus } from './GameEngine';
 export { Board } from './Board';
 export { Piece } from './Piece';
 export type { PieceStats } from './PieceStats';
