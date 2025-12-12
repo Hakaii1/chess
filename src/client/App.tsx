@@ -1,6 +1,6 @@
 /**
  * App.tsx
- * Main React component - Integrated Back Button & Turn Banner
+ * Main React component - Integrated Rescue Modal & Highlights
  */
 
 import React, { useEffect, useState } from 'react';
@@ -9,6 +9,7 @@ import { Sidebar } from './Sidebar';
 import { CombatLog } from './CombatLog';
 import { BattleScene } from './BattleScene';
 import { GameModeSelector } from './GameModeSelector';
+import { KingRescueModal } from './KingRescueModal'; // New Import
 import { useGameEngine } from './GameUIState';
 import { PieceColor, CombatResult } from '../core';
 import styles from './App.module.css';
@@ -16,7 +17,7 @@ import styles from './App.module.css';
 export const App: React.FC = () => {
   const [gameMode, setGameMode] = useState<'single-player' | 'two-player' | null>(null);
   const [boardFlipped, setBoardFlipped] = useState(false);
-  const [showBanner, setShowBanner] = useState(false); // New State
+  const [showBanner, setShowBanner] = useState(false);
 
   const {
     gameState,
@@ -25,6 +26,8 @@ export const App: React.FC = () => {
     executeMove,
     resetGame,
     isAIThinking,
+    activateRescue, // New
+    executeRescue,  // New
     engine
   } = useGameEngine(gameMode);
 
@@ -36,7 +39,6 @@ export const App: React.FC = () => {
     }
   }, [gameState.lastMove]);
 
-  // Turn Banner Trigger
   useEffect(() => {
     if (gameState.gameStatus === 'in-progress') {
       setShowBanner(true);
@@ -52,10 +54,17 @@ export const App: React.FC = () => {
   }, [gameState.currentTurn, gameMode, gameState.gameStatus]);
 
   const handleSquareClick = (x: number, y: number) => {
+    // 1. Handle King Rescue Actions
+    if (gameState.isKingRescue && gameState.activeAbility) {
+      executeRescue(x, y);
+      return;
+    }
+
     if (isAIThinking || gameState.gameStatus === 'game-over' || activeBattle) {
       return;
     }
 
+    // 2. Standard Move Handling
     if (gameState.selectedPiece) {
       const isValidMove = (gameState.validMoves || []).some((m: any) => m.x === x && m.y === y);
       if (isValidMove) {
@@ -102,8 +111,13 @@ export const App: React.FC = () => {
         />
       )}
 
+      {/* King Rescue Modal */}
+      {gameState.isKingRescue && !gameState.activeAbility && (
+        <KingRescueModal onSelectAbility={activateRescue} />
+      )}
+
       {/* Turn Banner Overlay */}
-      {showBanner && !activeBattle && (
+      {showBanner && !activeBattle && !gameState.isKingRescue && (
         <div className={styles.turnBanner}>
           <div className={`${styles.bannerText} ${gameState.currentTurn === PieceColor.WHITE ? styles.whiteTurn : styles.blackTurn}`}>
             {gameState.currentTurn === PieceColor.WHITE ? 'WHITE LEGION COMMAND' : 'BLACK ARMY ASSAULT'}
@@ -138,6 +152,8 @@ export const App: React.FC = () => {
             boardFlipped={boardFlipped}
             gameMode={gameMode}
             currentTurn={gameState.currentTurn}
+            isRescueMode={gameState.isKingRescue}
+            activeAbility={gameState.activeAbility}
           />
         </div>
       </div>

@@ -1,6 +1,6 @@
 /**
  * GameUIState.ts
- * React state wrapper around the GameEngine
+ * React state wrapper updated for Rescue Mechanics
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -12,7 +12,7 @@ export function useGameEngine(gameMode: any = 'single-player') {
 
   const [gameState, setGameState] = useState(() => ({
     boardState: engine.getBoardState(),
-    terrain: engine.getBoard().terrain, // Added terrain
+    terrain: engine.getBoard().terrain,
     currentTurn: engine.getCurrentTurn(),
     selectedPiece: engine.getSelectedPiece(),
     validMoves: engine.getValidMoves(),
@@ -21,26 +21,12 @@ export function useGameEngine(gameMode: any = 'single-player') {
     turnCount: engine.getTurnCount(),
     winner: engine.getWinner(),
     lastMove: null as any,
-    isAIThinking: engine.isAIThinking()
+    isAIThinking: engine.isAIThinking(),
+    // New State Fields
+    isKingRescue: engine.getGameStatus() === 'king-rescue',
+    activeAbility: engine.getActiveAbility(),
+    moveHistory: engine.getMoveHistory()
   }));
-
-  useEffect(() => {
-    const newEngine = new GameEngine(actualGameMode);
-    setEngine(newEngine);
-    setGameState({
-      boardState: newEngine.getBoardState(),
-      terrain: newEngine.getBoard().terrain,
-      currentTurn: newEngine.getCurrentTurn(),
-      selectedPiece: newEngine.getSelectedPiece(),
-      validMoves: newEngine.getValidMoves(),
-      combatLog: newEngine.getCombatLog(),
-      gameStatus: newEngine.getGameStatus(),
-      turnCount: newEngine.getTurnCount(),
-      winner: newEngine.getWinner(),
-      lastMove: null,
-      isAIThinking: newEngine.isAIThinking()
-    });
-  }, [actualGameMode]);
 
   const updateGameState = useCallback(() => {
     const history = engine.getMoveHistory();
@@ -57,19 +43,28 @@ export function useGameEngine(gameMode: any = 'single-player') {
       turnCount: engine.getTurnCount(),
       winner: engine.getWinner(),
       lastMove,
-      isAIThinking: engine.isAIThinking()
+      isAIThinking: engine.isAIThinking(),
+      isKingRescue: engine.getGameStatus() === 'king-rescue',
+      activeAbility: engine.getActiveAbility(),
+      moveHistory: history
     });
   }, [engine]);
 
+  useEffect(() => {
+    const newEngine = new GameEngine(actualGameMode);
+    setEngine(newEngine);
+    updateGameState();
+  }, [actualGameMode]);
+
   const handleSelectPiece = useCallback((x: number, y: number) => {
     engine.selectPiece(x, y);
-    setGameState(prev => ({ ...prev, selectedPiece: engine.getSelectedPiece(), validMoves: engine.getValidMoves() }));
-  }, [engine]);
+    updateGameState();
+  }, [engine, updateGameState]);
 
   const handleDeselectPiece = useCallback(() => {
     engine.deselectPiece();
-    setGameState(prev => ({ ...prev, selectedPiece: null, validMoves: [] }));
-  }, [engine]);
+    updateGameState();
+  }, [engine, updateGameState]);
 
   const handleExecuteMove = useCallback((toX: number, toY: number) => {
     const success = engine.executeMove(toX, toY);
@@ -82,6 +77,18 @@ export function useGameEngine(gameMode: any = 'single-player') {
     return success;
   }, [engine, updateGameState]);
 
+  // New Handlers for Rescue
+  const handleRescueAbility = useCallback((type: 'teleport' | 'swap') => {
+    engine.activateKingAbility(type);
+    updateGameState();
+  }, [engine, updateGameState]);
+
+  const handleRescueAction = useCallback((x: number, y: number) => {
+    const success = engine.executeKingAbilityAction(x, y);
+    if (success) updateGameState();
+    return success;
+  }, [engine, updateGameState]);
+
   const handleResetGame = useCallback(() => {
     engine.resetGame();
     updateGameState();
@@ -89,8 +96,8 @@ export function useGameEngine(gameMode: any = 'single-player') {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const isThinking = engine.isAIThinking();
-      if (isThinking !== gameState.isAIThinking || engine.getTurnCount() !== gameState.turnCount || engine.getGameStatus() !== gameState.gameStatus) {
+      // Periodic update to catch AI moves or state changes
+      if (engine.isAIThinking() !== gameState.isAIThinking || engine.getTurnCount() !== gameState.turnCount || engine.getGameStatus() !== gameState.gameStatus) {
         updateGameState();
       }
     }, 200);
@@ -98,6 +105,14 @@ export function useGameEngine(gameMode: any = 'single-player') {
   }, [engine, gameState.isAIThinking, gameState.turnCount, gameState.gameStatus, updateGameState]);
 
   return {
-    engine, gameState, selectPiece: handleSelectPiece, deselectPiece: handleDeselectPiece, executeMove: handleExecuteMove, resetGame: handleResetGame, isAIThinking: gameState.isAIThinking
+    engine, 
+    gameState, 
+    selectPiece: handleSelectPiece, 
+    deselectPiece: handleDeselectPiece, 
+    executeMove: handleExecuteMove, 
+    resetGame: handleResetGame, 
+    isAIThinking: gameState.isAIThinking,
+    activateRescue: handleRescueAbility,
+    executeRescue: handleRescueAction
   };
 }

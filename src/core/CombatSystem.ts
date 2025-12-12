@@ -1,6 +1,6 @@
 /**
  * CombatSystem.ts
- * Handles Combat + Class Advantages + Terrain Effects
+ * Handles Combat + Class Advantages + Terrain Effects + Buffs
  */
 
 import { Piece } from './Piece';
@@ -17,7 +17,7 @@ export interface CombatResult {
 }
 
 /**
- * Calculate damage with Class Advantages and Terrain
+ * Calculate damage with Class Advantages, Terrain, and Buffs
  */
 function calculateDamage(attacker: Piece, defender: Piece, board?: Board): number {
   let damage = attacker.stats.atk;
@@ -51,7 +51,16 @@ function calculateDamage(attacker: Piece, defender: Piece, board?: Board): numbe
     damage = Math.floor(damage * 0.8); // 20% penalty at max range
   }
 
-  return Math.max(damage - defenderDef, 1); // Minimum 1 damage
+  // 4. Base Damage Calculation
+  let finalDamage = Math.max(damage - defenderDef, 1);
+
+  // 5. Apply Buffs (Damage Reduction)
+  const reductionBuff = defender.buffs.find(b => b.type === 'dmg_reduction');
+  if (reductionBuff) {
+    finalDamage = Math.floor(finalDamage * (1 - reductionBuff.value));
+  }
+
+  return finalDamage;
 }
 
 export function resolveCombat(attacker: Piece, defender: Piece, board?: Board): CombatResult {
@@ -60,11 +69,14 @@ export function resolveCombat(attacker: Piece, defender: Piece, board?: Board): 
   const attackDamage = calculateDamage(attacker, defender, board);
   defender.takeDamage(attackDamage);
   
-  // Log Class Matchups
+  // Log Class Matchups & Buffs
   let bonusTxt = "";
   if (attacker.stats.pClass === PieceClass.RANGED && defender.stats.pClass === PieceClass.TANK) bonusTxt = " (Crit vs Tank!)";
   if (attacker.stats.pClass === PieceClass.TANK && defender.stats.pClass === PieceClass.MELEE) bonusTxt = " (Crit vs Melee!)";
   if (attacker.stats.pClass === PieceClass.MELEE && defender.stats.pClass === PieceClass.RANGED) bonusTxt = " (Crit vs Ranged!)";
+  
+  const defBuff = defender.buffs.find(b => b.type === 'dmg_reduction');
+  if (defBuff) bonusTxt += " (Shielded!)";
 
   log.push(`${attacker.type} attacks ${defender.type} for ${attackDamage}${bonusTxt}`);
 
@@ -75,7 +87,12 @@ export function resolveCombat(attacker: Piece, defender: Piece, board?: Board): 
     if (dist <= defender.stats.rng) {
       counterDamage = calculateDamage(defender, attacker, board);
       attacker.takeDamage(counterDamage);
-      log.push(`${defender.type} counters for ${counterDamage}`);
+      
+      let counterTxt = "";
+      const attBuff = attacker.buffs.find(b => b.type === 'dmg_reduction');
+      if (attBuff) counterTxt += " (Shielded!)";
+      
+      log.push(`${defender.type} counters for ${counterDamage}${counterTxt}`);
     } else {
       log.push(`${defender.type} out of range to counter!`);
     }
