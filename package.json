@@ -1,5 +1,6 @@
 {
   "name": "battle-chess",
+  "homepage": "https://hakaii1.github.io/chess/",
   "private": true,
   "version": "0.0.1",
   "type": "module",
